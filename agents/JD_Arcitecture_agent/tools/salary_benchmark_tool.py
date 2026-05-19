@@ -1,7 +1,7 @@
 import os
 import requests
 from crewai.tools import BaseTool
-from agents.Resume_Intelligence_agent.schema.research_schema import (
+from agents.JD_Arcitecture_agent.schema.research_schema import (
     SalaryBenchMarkerArgs, 
     SalaryBenchMarkerOutput, 
 )

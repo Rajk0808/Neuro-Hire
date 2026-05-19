@@ -17,7 +17,7 @@ def demo_competitor_analysis():
     analyzer = CompetitorJDAnalyzer()
     
     # Target companies and role
-    companies = ["Google", "Meta", "Microsoft", "Amazon", "Apple"]
+    companies = ["gammaedge"]
     role = "Senior Software Engineer"
     seniority = "senior"
     

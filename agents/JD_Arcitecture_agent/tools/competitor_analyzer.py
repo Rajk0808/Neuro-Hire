@@ -34,7 +34,8 @@ class CompetitorJDAnalyzer(BaseTool):
         "indeed": "https://www.indeed.com/jobs/",
         "glassdoor": "https://www.glassdoor.com/Job/",
         "builtin": "https://builtin.com/jobs/",
-        "techcrunch": "https://techcrunch.com/jobs/"
+        "techcrunch": "https://techcrunch.com/jobs/",
+        "naukri": "https://www.naukri.com/search/"
     }
     
     # JD Section patterns
@@ -97,7 +98,7 @@ class CompetitorJDAnalyzer(BaseTool):
         gaps = self._identify_gaps(analyses)
         opportunities = self._find_opportunities(patterns, gaps)
         
-        return CompetitorJDAnalysisOutput({
+        return {
             "companies_analyzed": len(analyses),
             "individual_analyses": analyses,
             "structural_patterns": patterns,
@@ -105,7 +106,7 @@ class CompetitorJDAnalyzer(BaseTool):
             "competitive_opportunities": opportunities,
             "generated_parser_code": self._generate_parser_code(analyses),
             "timestamp": datetime.now().isoformat()
-        })
+        }
     
     def _fetch_jd(self, company: str, role: str, seniority: str) -> Optional[str]:
         """Fetch JD from cache or web scrape."""
@@ -122,6 +123,8 @@ class CompetitorJDAnalyzer(BaseTool):
         jd_text = self._scrape_from_careers_page(company, role)
         if not jd_text:
             jd_text = self._scrape_from_job_boards(company, role, seniority)
+        if not jd_text:
+            jd_text = self._scrape_from_naukri(company, role, seniority)
         
         if jd_text:
             self._save_to_cache(cache_key, jd_text)
@@ -178,6 +181,55 @@ class CompetitorJDAnalyzer(BaseTool):
                     return job_snippet.get_text()[:5000]
         except Exception as e:
             print(f"  Job board scraping error: {e}")
+        
+        return None
+    
+    def _scrape_from_naukri(self, company: str, role: str, seniority: str) -> Optional[str]:
+        """Scrape from Naukri job portal (popular in India)."""
+        try:
+            print(f"  Fetching from Naukri for {company}...")
+            
+            # Naukri search URL format
+            search_query = f"{role} {company}".replace(' ', '-').lower()
+            url = f"https://www.naukri.com/search/?query={search_query}"
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': 'https://www.naukri.com/',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
+            response = requests.get(url, headers=headers, timeout=8)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Naukri job card containers
+                job_cards = soup.find_all('div', class_='jobTuple')
+                if job_cards:
+                    job_texts = []
+                    for card in job_cards[:3]:  # Get top 3 results
+                        job_text = card.get_text()
+                        if job_text:
+                            job_texts.append(job_text)
+                    
+                    combined_text = '\n'.join(job_texts)
+                    if combined_text:
+                        return combined_text[:5000]
+                
+                # Fallback: get all text if specific classes not found
+                main_content = soup.find('div', class_='listContainer')
+                if main_content:
+                    return main_content.get_text()[:5000]
+            
+            print(f"  ⚠️  Naukri fetch status: {response.status_code}")
+        except requests.exceptions.Timeout:
+            print(f"  Naukri request timeout")
+        except Exception as e:
+            print(f"  Naukri scraping error: {e}")
         
         return None
     
@@ -322,7 +374,7 @@ class CompetitorJDAnalyzer(BaseTool):
         
         patterns = {
             "common_sections": self._find_common_sections(analyses),
-            "average_jd_length": round(sum(a["text_length"] for a in analyses.values()) / len(analyses)),
+            "average_jd_length": round(sum(a["text_length"] for a in analyses.values()) / len(analyses)) if len(analyses) > 0 else 0,
             "most_common_skills": self._find_most_common_skills(analyses),
             "tone_characteristics": self._aggregate_tone(analyses),
             "compensation_trends": self._analyze_compensation_trends(analyses),
@@ -387,7 +439,7 @@ class CompetitorJDAnalyzer(BaseTool):
         
         comp_trend["average_transparency"] = round(
             (comp_trend["companies_with_salary_info"] / len(analyses)) * 100, 2
-        )
+        ) if len(analyses) > 0 else 0
         
         return comp_trend
     
@@ -542,7 +594,7 @@ class AutoGeneratedJDParser:
                 sections = analysis["sections_found"]
                 code += f'        # From {company}\n'
                 for section in sections[:3]:
-                    code += f'        "{section}": r"(?:{section}|{section.upper()}).*?(?=\n\n|\Z)",\n'
+                    code += f'         {section}: r"(?:{section}|{section.upper()}).*?(?=\n\n|\Z)",\n'
         
         code += '''    }
     
@@ -619,19 +671,3 @@ class AutoGeneratedJDParser:
         except Exception as e:
             print(f"Cache write error: {e}")
 
-
-# Convenience function
-def analyze_competitor_jds(companies: List[str], role: str, seniority: str = "mid") -> Dict:
-    """
-    Analyze competitor JDs.
-    
-    Args:
-        companies: List of company names
-        role: Target role
-        seniority: Seniority level (junior, mid, senior, lead)
-    
-    Returns:
-        Comprehensive analysis with patterns, gaps, and opportunities
-    """
-    analyzer = CompetitorJDAnalyzer()
-    return analyzer.analyze_competitors(companies, role, seniority)

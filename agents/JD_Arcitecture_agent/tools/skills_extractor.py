@@ -6,7 +6,7 @@ Extracts must-have vs nice-to-have skills from job descriptions and GitHub repos
 import requests
 import re
 from typing import List, Dict
-from agents.Resume_Intelligence_agent.schema.research_schema import (
+from agents.JD_Arcitecture_agent.schema.research_schema import (
     SkillExtractorArgs,
     SkillExtractorOutput,
 )
