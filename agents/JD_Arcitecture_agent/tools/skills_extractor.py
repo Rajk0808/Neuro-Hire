@@ -5,18 +5,30 @@ Extracts must-have vs nice-to-have skills from job descriptions and GitHub repos
 
 import requests
 import re
-from typing import List, Dict
+from typing import List, Dict, Type, ClassVar
+from pydantic import ConfigDict
 from agents.JD_Arcitecture_agent.schema.research_schema import (
     SkillExtractorArgs,
     SkillExtractorOutput,
 )
 from crewai.tools import BaseTool
 
-class FreeSkillsExtractor(BaseTool):
+class SkillsExtractorTool(BaseTool):
     """Extract skills from job descriptions and GitHub repos using free APIs."""
+    name: str = "SkillsExtractor"
+    description: str = (
+        "Use this tool to extract must-have and nice-to-have skills from job descriptions and GitHub repositories. "
+        "The tool identifies technical skills, tools, and concepts relevant to the specified role and domain. "
+        "It also detects vague terms (anti-patterns) and emerging skills that are gaining traction in the industry. "
+        "This helps create comprehensive and attractive job descriptions that align with market demands."
+    )
+    args_schema: Type[SkillExtractorArgs] = SkillExtractorArgs
+    output_schema: Type[SkillExtractorOutput] = SkillExtractorOutput
     
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
+
     # Comprehensive skill database by domain
-    SKILL_DATABASE = {
+    SKILL_DATABASE: ClassVar[Dict] = {
         "Technology": {
             "programming_languages": ["Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "Go", "Rust", "PHP", "Ruby", "Swift", "Kotlin"],
             "frameworks": ["Django", "FastAPI", "Flask", "React", "Vue.js", "Angular", "Next.js", "Spring", "ASP.NET", "Rails", "Laravel"],
@@ -33,49 +45,52 @@ class FreeSkillsExtractor(BaseTool):
     }
 
     # Anti-patterns (vague terms to avoid in job descriptions)
-    ANTI_PATTERNS = [
+    ANTI_PATTERNS: ClassVar[List[str]] = [
         "guru", "ninja", "rockstar", "wizard", "magic", "excellent communication",
         "strong work ethic", "team player", "hard-working", "self-motivated",
         "proactive", "detail-oriented", "passionate", "smart"
     ]
 
     # Emerging skills gaining traction
-    EMERGING_SKILLS = [
+    EMERGING_SKILLS: ClassVar[List[str]] = [
         "AI/ML", "LLMs", "Prompt Engineering", "Vector Databases", "Edge Computing",
         "Quantum Computing", "Web3", "Blockchain", "GraphQL", "WebAssembly",
         "Rust", "Go", "Terraform", "Infrastructure as Code", "GitOps"
     ]
 
-    def _run(self, args: SkillExtractorArgs) -> SkillExtractorOutput:
+    def _run(self, role: str, domain: str, source: str) -> SkillExtractorOutput:
         """
         Extract skills from job description and GitHub repos.
         
         Args:
-            args: SkillExtractorArgs containing role, domain, and source
+            role: The job title or role for which to extract skills
+            domain: The domain or industry related to the job role
+            source: The source text from which to extract skills
         """
         
         # Extract skills from source text
-        text_skills = self._extract_from_text(args.source)
+        text_skills = self._extract_from_text(source)
         
         # Get GitHub repo data
-        github_skills = self._extract_from_github(args.role, args.domain)
+        github_skills = self._extract_from_github(role, domain)
         
         # Get domain-specific skills
-        domain_skills = self.SKILL_DATABASE.get(args.domain, {})
+        domain_skills = self.SKILL_DATABASE.get(domain, {})
         
         # Categorize skills
         must_have = self._categorize_must_have(text_skills, domain_skills)
         nice_to_have = self._categorize_nice_to_have(text_skills, domain_skills)
-        anti_patterns = self._extract_anti_patterns(args.source)
+        anti_patterns = self._extract_anti_patterns(source)
         emerging = self._extract_emerging_skills(text_skills + github_skills)
         
         return {
             "must_have_skills": must_have,
-            "nice_to_have_skills": nice_to_have,
+            "good_to_have_skills": nice_to_have,
             "anti_pattern_skills": anti_patterns,
             "emerging_skills": emerging,
             "github_skills": github_skills
         }
+        
 
     def _extract_from_text(self, source: str) -> List[str]:
         """Extract technical skills from source text using pattern matching."""

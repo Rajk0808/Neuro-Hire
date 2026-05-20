@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 class SalaryBenchMarkerArgs(BaseModel):
     """Input schema for salary benchmarking tool."""
@@ -7,7 +7,7 @@ class SalaryBenchMarkerArgs(BaseModel):
     specialization : Optional[str] = Field(None, description="The specialization or field within the role, if applicable.")
     location : Optional[str] = Field(None, description="The geographic location for which to benchmark the salary.")
     experience_years : Optional[str] = Field(None, description="The number of years of experience for which to benchmark the salary.")
-    percentile_range : Optional[List[int]] = Field([25,50,75,100], description="The percentile range for which to benchmark the salary (e.g., 25th, 50th, 75th).")
+    percentile_range : Optional[List[int]] = Field(default=[25,50,75,100], description="The percentile range for which to benchmark the salary (e.g., 25th, 50th, 75th).")
 
 class SalaryBenchMarkerOutput(BaseModel):   
     '''Output schema for salary benchmarking results.'''
@@ -17,27 +17,28 @@ class SalaryBenchMarkerOutput(BaseModel):
     min_base_salary: float
     max_base_salary: float
     median_base_salary: float
-    market_note: Optional[str] | None  = Field(None, description="Additional notes about the salary market for the specified role and location.")
-    competing_titles: Optional[List[str]] | None = Field(None, description="List of competing job titles that are similar to the specified role and may have similar salary ranges.")
+    market_note: Optional[str] = Field(None, description="Additional notes about the salary market for the specified role and location.")
+    competing_titles: Optional[List[str]] = Field(None, description="List of competing job titles that are similar to the specified role and may have similar salary ranges.")
 
 class SkillExtractorArgs(BaseModel):
     '''Input schema for skill extraction tool.'''
-    role: str = Field('', description="The job title or role for which to extract skills.")
-    domain: str = Field('', description="The domain or industry related to the job role.")
-    source: str = Field('', description="The source text from which to extract skills.")
+    role: str = Field(..., description="The job title or role for which to extract skills.")
+    domain: str = Field(..., description="The domain or industry related to the job role.")
+    source: str = Field(..., description="The source text from which to extract skills.")
 
 class SkillExtractorOutput(BaseModel):
     '''Output schema for skill extraction results.'''
-    must_have_skills : List[str] = Field(..., description="List of must-have skills extracted from the source text.")
-    good_to_have_skills : List[str] = Field(..., description="List of good-to-have skills extracted from the source text.")
-    anti_pattern_skills : List[str] = Field(..., description="List of anti-pattern skills that are not relevant or desirable for the specified role and domain.")
-    emerging_skills : List[str] = Field(..., description="List of emerging skills that are gaining traction in the industry and may be relevant for the specified role and domain.")
+    must_have_skills : Union[List[str], dict] = Field(..., description="List of must-have skills extracted from the source text.")
+    good_to_have_skills : Union[List[str], dict] = Field(..., description="List of good-to-have skills extracted from the source text.")
+    anti_pattern_skills : Union[List[str], dict] = Field(..., description="List of anti-pattern skills that are not relevant or desirable for the specified role and domain.")
+    emerging_skills : Union[List[str], dict] = Field(..., description="List of emerging skills that are gaining traction in the industry and may be relevant for the specified role and domain.")
+    github_skills : Union[List[str], dict] = Field(..., description="List of skills extracted from relevant GitHub repositories that are associated with the specified role and domain.")
 
 class CompetitorJDAnalysisArgs(BaseModel):
     '''Input schema for competitor JD analysis tool.'''
     companies: List[str] = Field(..., description="List of competitor companies for which to analyze job descriptions.")
-    role: str = Field('', description="The job title or role for which to analyze competitor JDs.")
-    seniority: str = Field('', description="The seniority level (e.g., Junior, Mid, Senior) for which to analyze competitor JDs.")
+    role: str = Field(..., description="The job title or role for which to analyze competitor JDs.")
+    seniority: str = Field(..., description="The seniority level (e.g., Junior, Mid, Senior) for which to analyze competitor JDs.")
 
 class CompetitorJDAnalysisOutput(BaseModel):
     '''Returns structural patterns (sections used, language style, differentiators), and gaps in competitor JDs that can be exploited.'''
@@ -73,20 +74,36 @@ class LegalRequirementsCheckerOutput(BaseModel):
         default_factory=dict,
         description="Dictionary containing requested requirements: required_disclosures, prohibited_language, and/or mandatory_policies"
     )
-    required_disclosures: Optional[List[str]] = Field(
-        None,
-        description="List of mandatory disclosures that must be included in the job description or employment contract"
-    )
-    prohibited_language: Optional[List[str]] = Field(
-        None,
-        description="List of language, terms, or clauses that are prohibited or violate employment law"
-    )
-    mandatory_policies: Optional[List[str]] = Field(
-        None,
-        description="List of mandatory policies and compliance requirements for the jurisdiction"
-    )
-    timestamp: str = Field(..., description="ISO timestamp of when the check was performed")
-    data_source: Optional[str] = Field(None, description="Source of the legal data - RAG-indexed Employment Law Database")
+    timestamp: str = Field(..., description="Timestamp of when the check was performed")
+    data_source: Optional[str] = Field(None, description="Source of the legal requirements data (e.g., specific labor law databases or government gazettes)")
     last_updated: Optional[str] = Field(None, description="When the legal database was last updated - Monthly from official gazette sources")
-    message: Optional[str] = Field(None, description="Error message if status is 'error'")
-    
+
+class DEILanguageArgs(BaseModel):
+    '''Input schema for DEI language auditor tool.'''
+    job_description: str = Field(..., description="The text of the job description to be audited for DEI language.")
+    threshold: float = Field(0.5, description="The bias score threshold above which the tool will trigger an escalation to the Bias Guardian Agent for further review and recommendations.")
+
+class DEILanguageOutput(BaseModel):
+    '''Output schema for DEI language audit results.'''
+    flagged_words: List[str] = Field(..., description="List of potentially biased terms found in the job description.")
+    replacement_suggestions: List[str] = Field(..., description="List of suggested more inclusive alternatives corresponding to the flagged terms.")
+    bias_score: float = Field(..., description="A score representing the level of bias in the job description, calculated based on the number and severity of flagged terms relative to the total word count.")
+    recommendation: Optional[str] = Field(None, description="A recommendation for whether the job description should be revised based on the bias score and threshold.")
+    escalated : bool = Field(False, description="Indicates whether the issue was escalated to the Bias Guardian Agent for further review and recommendations.")
+    escalation_details: Optional[Dict] = Field(None, description="Details of the escalation to the Bias Guardian Agent, including any additional findings or recommendations provided by the agent.")
+
+
+class JDPosterArgs(BaseModel):
+    '''Input schema for JD formatting and posting tool.'''
+    title: str = Field(..., description="The job title for the position being posted.")
+    description: str = Field(..., description="The full text of the job description to be formatted and posted.")
+    location: Optional[str] = Field(None, description="The geographic location of the job (e.g., city, state, country).")
+    employment_status: Optional[str] = Field(default='FULL_TIME', description="The employment status for the position (e.g., FULL_TIME, PART_TIME, CONTRACT).")
+    workplace_types: Optional[List[str]] = Field(default=['ONSITE'], description="The workplace types for the position (e.g., ONSITE, REMOTE, HYBRID).")
+    external_id: Optional[str] = Field(None, description="An optional external identifier for the job posting to help track it across platforms.")
+
+class JDPosterOutput(BaseModel):
+    '''Output schema for JD formatting and posting results.'''
+    linkedin: Dict[str, Any] = Field(..., description="Results from posting to LinkedIn.")
+    naukri: Dict[str, Any] = Field(..., description="Results from posting to Naukri.")
+    ats: Dict[str, Any] = Field(..., description="Results from posting to ATS platforms.")

@@ -2,8 +2,11 @@
 Returns required disclosures, prohibited language, and mandatory policy references for the specified jurisdiction. 
 Updated monthly from official gazette sources."""
 
-from typing import List
+from typing import List, Type
 from datetime import datetime
+from crewai.tools import BaseTool
+from pydantic import ConfigDict
+from agents.JD_Arcitecture_agent.schema.research_schema import LegalRequirementsCheckerArgs, LegalRequirementsCheckerOutput
 
 # Legal Database - RAG indexed by jurisdiction and role type
 LEGAL_REQUIREMENTS_DATABASE = {
@@ -358,7 +361,18 @@ for country in ADDITIONAL_COUNTRIES:
         }
 
 
-class LegalRequirementsCheckerTool:
+class LegalRequirementsCheckerTool(BaseTool):
+    name: str = "LegalRequirementsCheckerTool"
+    description: str = (
+    "Use this tool to check legal compliance, labor laws, and mandatory disclosures "
+    "for a job description based on the specific jurisdiction and role classification. "
+    "Returns prohibited phrases, mandatory policy statements, and salary disclosure rules."  
+    )    
+    args_schema: Type[LegalRequirementsCheckerArgs] = LegalRequirementsCheckerArgs
+    output_schema: Type[LegalRequirementsCheckerOutput] = LegalRequirementsCheckerOutput
+    
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
+
     def __init__(self, escalation_handler=None):
         """
         Initialize the Legal Requirements Checker Tool.
@@ -367,13 +381,42 @@ class LegalRequirementsCheckerTool:
             escalation_handler: Optional callable to handle escalation when legal requirements are not met.
                                Should accept (job_description, missing_requirements)
         """
+        super().__init__()
         self.escalation_handler = escalation_handler
         self.database = LEGAL_REQUIREMENTS_DATABASE
-        
-    async def _arunc(self, jurisdiction: str, role_type: str, checks: List[str]) -> dict:
-        """Asynchronous method to check legal requirements."""
-        return await self.legal_requirements_checker(jurisdiction, role_type, checks)
     
+    def _run(self, jurisdiction: str, role_type: str, checks: List[str] = None) -> LegalRequirementsCheckerOutput:
+        """
+        Synchronous implementation of the legal requirements checker.
+        This is the method called by CrewAI when the tool is used.
+        """
+        import asyncio
+        import json
+        
+        if checks is None:
+            checks = ["required_disclosures", "prohibited_language", "mandatory_policies"]
+        
+        # Run the async method synchronously
+        try:
+            result = asyncio.run(self.legal_requirements_checker(jurisdiction, role_type, checks))
+        except RuntimeError:
+            # If event loop already exists, use run_coroutine_threadsafe
+            import concurrent.futures
+            loop = asyncio.new_event_loop()
+            result = loop.run_until_complete(self.legal_requirements_checker(jurisdiction, role_type, checks))
+            loop.close()
+        
+        # Return as LegalRequirementsCheckerOutput
+        return result
+        
+    async def _arunc(self, args: LegalRequirementsCheckerArgs) -> LegalRequirementsCheckerOutput:
+        """Asynchronous method to check legal requirements."""
+        result = await self.legal_requirements_checker(
+            jurisdiction=args.jurisdiction,
+            role_type=args.role_type,
+            checks=args.checks
+        )
+        return LegalRequirementsCheckerOutput(**result)
     async def legal_requirements_checker(
         self, 
         jurisdiction: str, 

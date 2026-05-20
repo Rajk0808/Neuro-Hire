@@ -2,11 +2,25 @@
 
 import re
 import asyncio
+from typing import Type
+from pydantic import ConfigDict
 from agents.JD_Arcitecture_agent.tools.Bias_Guardian_agent import BiasGuardianAgent
+from crewai.tools import BaseTool
+from pydantic import BaseModel
+from agents.JD_Arcitecture_agent.schema.research_schema import DEILanguageArgs, DEILanguageOutput
 
-
-class DEILanguage:
+class DEILanguageTool(BaseTool):
     """Tool to audit job descriptions for DEI (Diversity, Equity, Inclusion) language."""
+    name: str = 'dei_language_auditor'
+    description: str = ("use this tool to audit job descriptions for DEI (Diversity, Equity, Inclusion) language. "
+                   "It identifies potentially biased terms, calculates a bias score based on the density of such terms, "
+                   "and provides suggestions for more inclusive alternatives. If the bias score exceeds a specified threshold, "
+                   "it can trigger an escalation to the Bias Guardian Agent for further review and action.")
+    args_schema: Type[DEILanguageArgs] = DEILanguageArgs
+    output_schema: Type[DEILanguageOutput] = DEILanguageOutput
+    
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
+
     def __init__(self):
         """
         Initialize DEI Language Auditor.
@@ -15,6 +29,7 @@ class DEILanguage:
             escalation_handler: Optional callable to handle escalation when bias_score exceeds threshold.
                                Should accept (job_description, bias_score, flagged_terms, suggestions)
         """
+        super().__init__()
         self.escalation_handler = BiasGuardianAgent().handle_escalation
         self.flagged_terms = {
             'aggressive': "assertive" ,
@@ -44,10 +59,22 @@ class DEILanguage:
             "policeman": "police officer", "policewoman": "police officer",
 
         }
+    
+    def _run(self, job_description: str, threshold: float = 5.0) -> DEILanguageOutput:
+        """Synchronous wrapper for CrewAI compatibility."""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         
-    async def _arunc(self, job_description: str, threshold: float) -> dict:
+        result = loop.run_until_complete(self._arunc(DEILanguageArgs(job_description=job_description, threshold=threshold)))
+        return result
+        
+    async def _arunc(self, args : DEILanguageArgs) -> DEILanguageOutput:
         """Asynchronous method to evaluate the job description for DEI language."""
-        return await self.evaluate_jd(job_description, threshold)
+        result = await self.evaluate_jd(args.job_description, args.threshold)
+        return DEILanguageOutput(**result)
     
     async def evaluate_jd(self, job_description: str, threshold: float) -> dict:
         """Evaluate the job description for DEI language and return a report."""

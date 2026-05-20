@@ -4,14 +4,28 @@ Reformats the synthesized JD into platform-specific schemas (LinkedIn uses JSON-
 """
 import datetime
 import os 
+from typing import Type
 from dotenv import load_dotenv
 import requests
+from pydantic import ConfigDict
+from crewai.tools import BaseTool
+from agents.JD_Arcitecture_agent.schema.research_schema import JDPosterArgs, JDPosterOutput
 
-class JDPosterTool:
+class JDPosterTool(BaseTool):
     """Tool for formatting and posting job descriptions to various platforms."""
      
+    name: str = "JDPosterTool"
+    description: str = ("Use this tool to post the finalized job description to platforms like LinkedIn and Naukri. "
+                   "Provide the job title, description, location, employment status, workplace types, and an optional external ID for tracking. "
+                   "The tool will return the posting URLs and status for each platform.")
+    args_schema: Type[JDPosterArgs] = JDPosterArgs
+    output_schema: Type[JDPosterOutput] = JDPosterOutput
+    
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
+    
     def __init__(self):
         """Initialize JD Poster Tool with API credentials from environment variables."""
+        super().__init__()
         load_dotenv()
         self.linkedin_api_key = os.getenv('LINKEDIN_API_KEY')
         self.naukri_api_key = os.getenv('NAUKRI_API_KEY')
@@ -47,22 +61,20 @@ class JDPosterTool:
         ]
         }
     
-    async def post_to_naukri(self, jd_data: dict) -> dict:
-        """Format JD data to Naukri's XML schema and post via API."""
-        naukri_payload = self.format_for_naukri(jd_data)
-        headers = {'Authorization': f'Bearer {self.naukri_api_key}', 'Content-Type': 'application/xml'}
-        
-        
-    async def format_for_naukri(self, jd_data: dict) -> str:
-        """Convert JD data into Naukri's XML format."""
-        xml_payload = f"""
-        <job>
-            <title>{jd_data.get('title', '')}</title>
-            <description>{jd_data.get('description', '')}</description>
-            <location>{jd_data.get('location', 'India')}</location>
-            <employmentStatus>{jd_data.get('employment_status', 'FULL_TIME')}</employmentStatus>
-            <externalJobPostingId>{jd_data.get('external_id', '')}</externalJobPostingId>
-            <workplaceTypes>{','.join(jd_data.get('workplace_types', ['ONSITE']))}</workplaceTypes>
-        </job>
-        """
-        return xml_payload.strip()
+    def _run(self, title: str, description: str, location: str = None, employment_status: str = 'FULL_TIME', workplace_types: list = None, external_id: str = None) -> JDPosterOutput:
+        """Main method to post JD to all platforms and aggregate results."""
+        jd_data = {
+            'title': title,
+            'description': description,
+            'location': location,
+            'employment_status': employment_status,
+            'workplace_types': workplace_types or ['ONSITE'],
+            'external_id': external_id
+        }
+        linkedin_result = self.post_to_linkedin(jd_data)
+        # Placeholder for Naukri and ATS posting methods
+        return {
+            "linkedin": linkedin_result,
+            "naukri": {"status": "not_implemented"},
+            "ats": {"status": "not_implemented"}
+        }
