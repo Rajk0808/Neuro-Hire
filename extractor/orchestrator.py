@@ -25,8 +25,11 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
+from anyio import Path
+import pymupdf4llm
 from pipeline import ResumePipeline, ResumeData
 from llm_extractor import extract_with_llm, batch_extract_with_llm
 
@@ -269,7 +272,7 @@ class ResumeOrchestrator:
         # ── BATCH LLM EXTRACTION ─────────────
         try:
             llm_results = batch_extract_with_llm(
-                texts=texts,
+                resume_texts=texts,
                 batch_size=self.llm_batch_size,
                 rpm_limit=self.rpm_limit,
             )
@@ -321,3 +324,21 @@ class ResumeOrchestrator:
             )
 
         return merged_results
+    
+    def pdf_to_text(self, pdf_path: Path) -> str:
+        """
+        Utility method to convert PDF file to text.
+        Can be used for preprocessing before extraction.
+        """
+        # Convert the PDF to Markdown
+        md_text = pymupdf4llm.to_text(pdf_path)
+        return md_text
+    
+    def docx_to_text(self, docx_path: Path) -> str:
+        """
+        Utility method to convert DOCX file to text.
+        Can be used for preprocessing before extraction.
+        """
+        # Convert the DOCX to Markdown
+        md_text = pymupdf4llm.to_text(docx_path)
+        return md_text

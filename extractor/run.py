@@ -148,10 +148,29 @@ def main():
 
     mode = ExtractionMode(args.mode)
     orch = ResumeOrchestrator(mode=mode, max_workers=args.workers)
-
+    paths = []
     # ── Collect texts ─────────────────────────
-    if args.input:
-        paths = list(Path(args.input).glob("*.txt"))
+    if args.input and Path(args.input).glob("*.pdf"):
+        pdf_paths = list(Path(args.input).glob("*.pdf"))
+        for pdf_path in pdf_paths:
+            text = orch.pdf_to_text(pdf_path)
+            if text:
+                paths.append(pdf_path.with_suffix(".txt"))
+                paths[-1].write_text(text, encoding="utf-8")
+            else:
+                logging.warning(f"Failed to extract text from {pdf_path}, skipping.")
+        
+        if args.input and Path(args.input).glob("*.docx"):
+            doc_paths = list(Path(args.input).glob("*.docx"))
+            for docx_path in doc_paths:
+                text = orch.docx_to_text(docx_path)
+                if text:
+                    paths.append(docx_path.with_suffix(".txt"))
+                    paths[-1].write_text(text, encoding="utf-8")
+                else:
+                    logging.warning(f"Failed to extract text from {docx_path}, skipping.")
+
+
         if not paths:
             sys.exit(f"No .txt files found in {args.input}")
         texts = [p.read_text(encoding="utf-8") for p in paths]
