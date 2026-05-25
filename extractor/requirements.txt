@@ -1,0 +1,11 @@
+# Core NLP
+spacy>=3.7.0
+# After install, also run:
+#   python -m spacy download en_core_web_sm
+
+# LLM layer using local Ollama
+ollama>=0.1.0
+
+# Performance (optional but recommended for large batches)
+ujson>=5.0        # faster JSON serialisation
+tqdm>=4.0         # progress bars in batch mode

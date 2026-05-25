@@ -1,0 +1,1 @@
+"""Elasticsearch BM25 index over all resume text. Best for: exact skill names (specific frameworks, certifications, job titles), mandatory filter criteria. Fast — sub-100ms for 500K resumes. Fails on: synonyms, paraphrases, domain jargon. """

@@ -98,7 +98,6 @@ response2 = client.chat.completions.create(
 
 from crewai import BaseLLM
 from typing import Any, Dict, List, Optional, Union
-import requests
 import os
 from openai import OpenAI
 class CustomLLM(BaseLLM):
