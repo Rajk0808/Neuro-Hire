@@ -80,7 +80,7 @@ class insert_to_neo4j:
                     c.status = {str(candidate_data['status'] if isinstance(candidate_data, dict) else candidate_data.status).lower()},
                     c.location = '{candidate_data['location'] if isinstance(candidate_data, dict) else candidate_data.location}'
                 MATCH (j:JobReq {{id: '{jobreq_id}'}})
-                MERGE (j)-[:APPLIED_TO]->(c)
+                MERGE (c)-[:APPLIED_TO]->(j)
                 """
             run_query(query, self.driver)
         except Exception as e:

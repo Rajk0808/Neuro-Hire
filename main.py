@@ -19,7 +19,7 @@ data = IngestionGraph(
 ingestion_pipeline.ingest_to_vector_db(data)
 """
 
-from agents.Resume_Intelligence_agent.database.clients import neo4j_client
+"""from agents.Resume_Intelligence_agent.database.clients import neo4j_client
 
 _client = neo4j_client
 
@@ -27,8 +27,25 @@ def run_query(query: str):
     "Runs query on Neo4j database using the provided driver."
     return _client.execute_query(query, database="neo4j")
     
-    
-
 query = f"MATCH (c:Candidate) WHERE c.name = 'Muhammad Ghulam Jillani' RETURN c.name AS name, c.contact_info AS contactinfo"
 result = run_query(query)
 print(result) 
+"""
+"""
+def main(**kwargs):
+    if 'name' in kwargs:
+        name = kwargs['name']
+        print(f"Hello, {name}!")
+    if 'age' in kwargs:
+        age = kwargs['age']
+        print(f"You are {age} years old.")
+
+main(name="Alice", age=30)
+"""
+
+from agents.Resume_Intelligence_agent.services.retrival_services.retrieval.neo4j_retrieval import Neo4jRetrieval
+
+retrieval_agent = Neo4jRetrieval()
+query = "Find candidates with experience in data science and machine learning and are skilled in Python and have worked at tech companies."
+result = retrieval_agent.retrieve(query, job_req_id="jobreq_1234")
+print(result)
