@@ -14,8 +14,7 @@ from typing import Optional
 from langchain_openrouter import ChatOpenRouter
 import os
 from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
-
+load_dotenv()  
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +30,8 @@ JSON schema (return exactly this shape):
   "phone": string | null,
   "location": string | null,
   "job_title": string | null,
-  "skills": [string],
-  "experience": [{"title": string, "company": string, "dates": string, "description": string}],
+  "skills": [{ "name": string, "category": string }],
+  "experience": [{"title": string, "domain": string, "company": {"name": string, "sector": string | null, "size": string | null, "stage": string | null, "industry": string | null, "regulation": string | null}, "dates": string, "description": List[string]}],
   "education": [{"degree": string, "institution": string, "year": string, "gpa": string | null}],
   "certifications": [string],
   "projects": [{"name": string, "description": string, "technologies": [string]}],
@@ -47,7 +46,7 @@ def _make_client():
     """Test connection to local Ollama server"""
     try:
         model = ChatOpenRouter(
-                model="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+                model="openai/gpt-oss-120b:free",
                 temperature=0.8,
                 api_key= os.getenv("OPENROUTER_API_KEY")
             )
@@ -68,7 +67,7 @@ def _get_client():
     return _client
 
 
-def extract_with_llm(resume_text: str, retries: int = 3) -> Optional[dict]:
+def extract_with_llm(resume_text: str, retries: int = 0) -> Optional[dict]:
     """
     Call local Ollama model to extract resume fields.
     Returns parsed dict or None on failure.
@@ -88,6 +87,7 @@ def extract_with_llm(resume_text: str, retries: int = 3) -> Optional[dict]:
             if response and response.content:
                 raw = response.content
                 raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+                logger.info("LLM extraction successful (attempt %d)", attempt + 1)
                 return json.loads(raw)
             else:
                 logger.debug("Ollama returned empty response (attempt %d)", attempt + 1)
@@ -126,8 +126,7 @@ def batch_extract_with_llm(
     if client is None:
         return [None] * len(resume_texts)
 
-    results: list[Optional[dict]] = [None] * len(resume_texts)
-    model = "llama2:latest"
+    results: dict = {}
     successful_batches = 0
 
     for batch_start in range(0, len(resume_texts), batch_size):
@@ -149,6 +148,7 @@ def batch_extract_with_llm(
                 raw = response.content
                 raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
                 parsed = json.loads(raw)
+                logger.info("Batch LLM extraction successful for resumes %d-%d", batch_start + 1, batch_start + len(batch))
                 if isinstance(parsed, list):
                     for i, item in enumerate(parsed):
                         results[batch_start + i] = item
@@ -169,4 +169,4 @@ def batch_extract_with_llm(
 
     if successful_batches > 0:
         logger.info("Batch extraction: %d/%d batches succeeded", successful_batches, (len(resume_texts) + batch_size - 1) // batch_size)
-    return results
+    return [results.get(i) for i in range(len(resume_texts))]

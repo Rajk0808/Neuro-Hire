@@ -30,8 +30,9 @@ from typing import Optional
 
 from anyio import Path
 import pymupdf4llm
-from pipeline import ResumePipeline, ResumeData
-from llm_extractor import extract_with_llm, batch_extract_with_llm
+from agents.Resume_Intelligence_agent.services.ingestion_services.StateGraph.IngestionGraph import IngestionGraph
+from agents.Resume_Intelligence_agent.services.ingestion_services.extractor.pipeline import ResumePipeline, ResumeData
+from agents.Resume_Intelligence_agent.services.ingestion_services.extractor.llm_extractor import extract_with_llm, batch_extract_with_llm
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +160,7 @@ class ResumeOrchestrator:
 
     def __init__(
         self,
-        mode: ExtractionMode = ExtractionMode.HYBRID,
+        mode: ExtractionMode = ExtractionMode.LLM,
         max_workers: int = 8,
         llm_batch_size: int = 5,
         rpm_limit: int = 50,
@@ -246,10 +247,10 @@ class ResumeOrchestrator:
     # BATCH EXTRACTION
     # ─────────────────────────────────────────
 
-    def batch_extract(
+    def batch_process(
         self,
-        texts: list[str],
-    ) -> list[ResumeData]:
+        StateGraph: IngestionGraph
+    ) -> IngestionGraph:
         """
         Extract data from multiple resumes efficiently.
 
@@ -257,74 +258,78 @@ class ResumeOrchestrator:
             1. Parallel fast extraction
             2. Batched LLM enrichment
             3. Smart merge strategy
-        """
-
-        if not texts:
-            return []
-
-        # ── FAST MODE ────────────────────────
+        """       
+        if not StateGraph['text'] if isinstance(StateGraph, dict) else not getattr(StateGraph, 'text', None):
+            # Initialize llm_response even if text is empty
+            if isinstance(StateGraph, dict):
+                StateGraph["llm_response"] = StateGraph.get("llm_response", {})
+            else:
+                StateGraph.llm_response = getattr(StateGraph, "llm_response", {})
+            return StateGraph
+        self.mode = ExtractionMode(StateGraph.mode)
+        ## Fast Mode
         if self.mode == ExtractionMode.FAST:
-            return self._pipeline.batch_extract(texts)
-
-        # Always run deterministic pipeline first
-        bases = self._pipeline.batch_extract(texts)
-
-        # ── BATCH LLM EXTRACTION ─────────────
+            for key, value in StateGraph.text.items():
+                StateGraph.llm_response[key] = self._pipeline.extract(value["text"])
+            return StateGraph
+        
+        #  Run deterministic pipeline first
+        for key, value in StateGraph.text.items():
+            StateGraph.text[key]['base'] = self._pipeline.extract(value["text"])
+        bases = self._pipeline.batch_extract([value['base'] for value in StateGraph.text.values()])
+        
+        # Batch LLM Extraction
         try:
             llm_results = batch_extract_with_llm(
-                resume_texts=texts,
+                resume_texts=[value["text"] for value in StateGraph.text.values()],
                 batch_size=self.llm_batch_size,
                 rpm_limit=self.rpm_limit,
             )
-
         except Exception as exc:
             logger.exception(
                 "Batch LLM extraction failed: %s",
                 exc,
             )
-
-            return bases
-
-        merged_results: list[ResumeData] = []
-
-        # ─────────────────────────────────────
-        # FULL LLM MODE
-        # ─────────────────────────────────────
+            for key, value in StateGraph.text.items():
+                StateGraph.llm_response[key] = None
+            return StateGraph
+        # Full LLM Mode
+        llm_response = {}
         if self.mode == ExtractionMode.LLM:
-
-            for base, llm_data in zip(bases, llm_results):
-
-                if llm_data:
-
-                    combined = {
-                        **llm_data,
-                        "email": base.email,
-                        "phones": base.phones,
-                        "social_links": base.social_links,
-                    }
-
-                    merged_results.append(
-                        _merge(
+            for key, value in StateGraph.text.items():
+                try:
+                    llm_data = extract_with_llm(value["text"])
+                    if llm_data:
+                        merged = {
+                            **llm_data,
+                            "email": value['base'].email,
+                            "phones": value['base'].phones,
+                            "social_links": value['base'].social_links,
+                        }
+                        llm_response[key] = _merge(
                             ResumeData(),
-                            combined,
+                            merged,
                         )
+                    else:
+                        llm_response[key] = value['base']
+                except Exception as exc:
+                    logger.exception(
+                        "LLM extraction failed for key %s: %s",
+                        key,
+                        exc,
                     )
-
-                else:
-                    merged_results.append(base)
-
-            return merged_results
-
-        # ─────────────────────────────────────
-        # HYBRID MODE
-        # ─────────────────────────────────────
+                    llm_response[key] = value['base']
+            StateGraph.llm_response = llm_response
+            return StateGraph
+        
+        # Hybrid Mode
+        count = 0  
+        keys = list(StateGraph.text.keys())
         for base, llm_data in zip(bases, llm_results):
-            merged_results.append(
-                _merge(base, llm_data)
-            )
+            StateGraph.llm_response[keys[count]] = _merge(base, llm_data)
+            count += 1
+        return StateGraph
 
-        return merged_results
-    
     def pdf_to_text(self, pdf_path: Path) -> str:
         """
         Utility method to convert PDF file to text.
@@ -342,3 +347,13 @@ class ResumeOrchestrator:
         # Convert the DOCX to Markdown
         md_text = pymupdf4llm.to_text(docx_path)
         return md_text
+    
+    def clean_text(self, text: str) -> str:
+        """
+        Basic text cleaning to improve extraction quality.
+        Can be extended with more sophisticated preprocessing.
+        """
+        # remove \n, extra spaces, and - replace with space
+        cleaned = text.replace("\n", " ").replace("-", " ")
+        cleaned = " ".join(cleaned.split())
+        return cleaned
