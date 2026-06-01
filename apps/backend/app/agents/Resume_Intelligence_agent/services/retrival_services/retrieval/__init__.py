@@ -1,0 +1,7 @@
+from apps.backend.app.agents.Resume_Intelligence_agent.services.retrival_services.retrieval.neo4j_retrieval import Neo4jRetrieval
+from apps.backend.app.agents.Resume_Intelligence_agent.services.retrival_services.retrieval.chromadb_retrieval import chromaDB_retrieval
+from apps.backend.app.agents.Resume_Intelligence_agent.services.retrival_services.retrieval.opensearch_retrieval import opensearch_retrieval
+
+opensearch_retrieval_instance = opensearch_retrieval
+chromaDB_retrieval_instance = chromaDB_retrieval
+neo4j_retrieval_instance = Neo4jRetrieval().retrieve

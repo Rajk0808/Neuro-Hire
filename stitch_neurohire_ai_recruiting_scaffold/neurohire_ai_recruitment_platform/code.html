@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeuroHire | Recruiter Intelligence Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up {
+            animation: fadeUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .pulse-glow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #464554; border-radius: 10px; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#13131b",
+                        "primary-fixed": "#e1e0ff",
+                        "on-secondary": "#1d00a5",
+                        "on-background": "#e4e1ed",
+                        "on-secondary-fixed-variant": "#3323cc",
+                        "on-secondary-container": "#b3b1ff",
+                        "secondary": "#c3c0ff",
+                        "on-tertiary": "#4f2500",
+                        "surface-tint": "#c0c1ff",
+                        "on-surface-variant": "#c7c4d7",
+                        "error-container": "#93000a",
+                        "on-tertiary-container": "#452000",
+                        "surface-container-low": "#1b1b23",
+                        "outline-variant": "#464554",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-primary-container": "#0d0096",
+                        "on-secondary-fixed": "#0f0069",
+                        "on-primary-fixed": "#07006c",
+                        "on-surface": "#e4e1ed",
+                        "outline": "#908fa0",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "inverse-primary": "#494bd6",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "secondary-container": "#3626ce",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#13131b",
+                        "surface-container-highest": "#34343d",
+                        "secondary-fixed-dim": "#c3c0ff",
+                        "inverse-surface": "#e4e1ed",
+                        "on-tertiary-fixed": "#301400",
+                        "surface-container-high": "#292932",
+                        "secondary-fixed": "#e2dfff",
+                        "surface-container-lowest": "#0d0d15",
+                        "surface-variant": "#34343d",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "primary-container": "#8083ff",
+                        "primary": "#c0c1ff",
+                        "inverse-on-surface": "#303038",
+                        "tertiary-container": "#d97721",
+                        "surface-container": "#1f1f27",
+                        "surface": "#13131b",
+                        "on-primary": "#1000a9",
+                        "on-error": "#690005",
+                        "surface-bright": "#393841",
+                        "tertiary": "#ffb783",
+                        "on-error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-sm": "8px",
+                        "gutter": "24px",
+                        "margin-page": "40px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- Sidebar (Shared Component Style) -->
+<aside class="fixed left-0 top-0 hidden md:flex flex-col h-screen w-64 bg-surface-container-low border-r border-outline-variant z-40 py-stack-lg px-stack-md">
+<div class="flex items-center gap-3 mb-10 px-2">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">neurology</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-black text-on-surface tracking-tighter">NeuroHire</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Autonomous Intelligence</p>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold transition-all translate-x-1" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">work</span>
+<span class="font-label-md text-label-md">Jobs</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-label-md text-label-md">Candidates</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">event_available</span>
+<span class="font-label-md text-label-md">Interviews</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md">Intelligence</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-outline-variant space-y-2">
+<button class="w-full flex items-center gap-3 px-4 py-3 text-primary bg-primary/10 rounded-lg font-bold hover:bg-primary/20 transition-colors mb-4">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="font-label-md text-label-md">New Requisition</span>
+</button>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined">memory</span>
+<span class="font-label-md text-label-md">Agent Status</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-md text-label-md">Help</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:ml-64 flex-1 flex flex-col min-h-screen">
+<!-- TopAppBar (Shared Component Style) -->
+<header class="flex justify-between items-center w-full px-margin-page h-16 sticky top-0 z-30 bg-background border-b border-outline-variant">
+<div class="flex items-center gap-6">
+<div class="hidden md:flex items-center bg-surface-container-high rounded-full px-4 py-1.5 w-80">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px] mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm w-full placeholder:text-on-surface-variant/50" placeholder="Search talent, roles, agents..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-tertiary rounded-full"></span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">smart_toy</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">settings</span>
+</button>
+<div class="ml-2 h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="Recruiter Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a corporate recruiter in a modern office, wearing a stylish blazer, soft cinematic lighting with a shallow depth of field, high-end professional aesthetic with a focused yet warm expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBH9V5aFYYmOTuHFSt2GNnQSRENu3jvpRtkjaOS6R7V7va6c7zSxfshCwNwcM-bGNZGNyp6Qx4spzmGhevpvnhGOSeJt4-Y5mPyUmf8vHOlaWViESts8sYYYQgKk-q5fnDh_DpuSizM6B2IkF-uVh42RiadcqByIRBArL9SjzEjFCFR5Iga547ebAl27wdgP3DBFnk62iHNvk_f067ydYQp1hMBgks3G2pI4DrBK0yCNu0saL4Hx9Crjf_XKDEBKRLELrsLfiivmw"/>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="p-margin-page max-w-[1600px] w-full mx-auto space-y-gutter">
+<!-- Metrics Row -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<div class="bg-surface-container-low p-stack-lg rounded-xl border border-outline-variant shadow-sm animate-fade-up delay-1">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">work_outline</span>
+<span class="text-tertiary font-label-md">+12%</span>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Open Roles</p>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">42</h2>
+</div>
+<div class="bg-surface-container-low p-stack-lg rounded-xl border border-outline-variant shadow-sm animate-fade-up delay-2">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-secondary bg-secondary/10 p-2 rounded-lg">person_search</span>
+<span class="text-tertiary font-label-md">+156</span>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Candidates this week</p>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">1,284</h2>
+</div>
+<div class="bg-surface-container-low p-stack-lg rounded-xl border border-outline-variant shadow-sm animate-fade-up delay-3">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-tertiary bg-tertiary/10 p-2 rounded-lg">avg_time</span>
+<span class="text-error font-label-md">-2d</span>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Avg Time-to-Hire</p>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">14.5<span class="text-body-md ml-1">days</span></h2>
+</div>
+<div class="bg-surface-container-low p-stack-lg rounded-xl border border-outline-variant shadow-sm animate-fade-up delay-4">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary-container bg-primary-container/10 p-2 rounded-lg">verified_user</span>
+<span class="text-tertiary font-label-md">99%</span>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Bias Score (Compliance)</p>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">98.2</h2>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Recent Job Requisitions (Bento Style) -->
+<div class="lg:col-span-8 space-y-stack-lg">
+<div class="flex justify-between items-end mb-2">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Active Requisitions</h3>
+<p class="text-on-surface-variant font-body-sm">Currently managed by autonomous agents</p>
+</div>
+<button class="text-primary font-label-md hover:underline">View All</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-md animate-fade-up delay-5">
+<!-- Job Card 1 -->
+<div class="bg-surface-container p-stack-lg rounded-xl border border-outline-variant hover:border-primary/50 transition-all group">
+<div class="flex justify-between items-start mb-6">
+<div class="bg-surface-container-highest w-12 h-12 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">terminal</span>
+</div>
+<div class="px-3 py-1 bg-tertiary/20 text-tertiary text-[10px] font-bold rounded-full border border-tertiary/30">DEI SCORE: 98</div>
+</div>
+<h4 class="font-headline-md text-on-surface mb-1">Senior ML Engineer</h4>
+<p class="text-on-surface-variant font-body-sm mb-4">Engineering • San Francisco, CA (Remote)</p>
+<div class="flex items-center gap-4 mb-6">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border-2 border-surface-container overflow-hidden">
+<img alt="Candidate 1" data-alt="Close up face of a diverse candidate with warm studio lighting and professional background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxhOyme-0zD_QlqWlDFuGzcVMZwfgMVsdnRU-mRF62gmYeVhd85TotGBO-zunpWPskf3hqcCKO2Cx8vB1kzl2UxypDeGL5-RANP1QswDkCzalc4RYUKKW7J6LDinMSuSmtKnvFRWACBwUc7YCRgVOo4J2LQpwBnRclboMeTLMPYVXl2h7ftLZFe5TQ_ZhFd4LCtiRsZFJim7oPzB2QcTsHFv1G6NjRcGf3rNY0zHiatVGL2TpCrVHM_8rO0rnyPnPfkbv7rM1v1w"/>
+</div>
+<div class="w-6 h-6 rounded-full border-2 border-surface-container overflow-hidden">
+<img alt="Candidate 2" data-alt="Portrait of a female professional with an intelligent gaze, soft natural lighting and a minimalist modern office setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0Ct464lPuJX49B2moLdbdpZY4HBBOSyRIudZs_IWNFOythWMM_FUFt1PerwRjZeHtjninpMaSVxFXzpQvuQOkyQZOTC_e2RK9iczn6GiyOOs3FcijiszVBmWdh_24CWc-YlkeE40cPVDA5xBPxE-aBM30dz9tWs5T85qCoKtvTUbE70T2E7zhIcyqwtHSftJ08YikI1O5eYoMbQ_ZKvvbWb1sEJkjMzPkkZR06ctilzUjFFZ1t6KlpbshlSwlPUoIYSwkgmlF3w"/>
+</div>
+<div class="w-6 h-6 rounded-full bg-surface-container-highest border-2 border-surface-container flex items-center justify-center text-[8px]">+12</div>
+</div>
+<span class="text-body-sm text-on-surface-variant">42 Active Candidates</span>
+</div>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary pulse-glow"></span>
+<span class="font-label-md text-primary uppercase">Sourcing Active</span>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">arrow_forward</button>
+</div>
+</div>
+<!-- Job Card 2 -->
+<div class="bg-surface-container p-stack-lg rounded-xl border border-outline-variant hover:border-primary/50 transition-all group">
+<div class="flex justify-between items-start mb-6">
+<div class="bg-surface-container-highest w-12 h-12 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary group-hover:scale-110 transition-transform">design_services</span>
+</div>
+<div class="px-3 py-1 bg-tertiary/20 text-tertiary text-[10px] font-bold rounded-full border border-tertiary/30">DEI SCORE: 96</div>
+</div>
+<h4 class="font-headline-md text-on-surface mb-1">Principal Product Designer</h4>
+<p class="text-on-surface-variant font-body-sm mb-4">Design • New York, NY</p>
+<div class="flex items-center gap-4 mb-6">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border-2 border-surface-container overflow-hidden">
+<img alt="Candidate 1" data-alt="Portrait of a male designer with creative style, wearing glasses, high contrast lighting and artistic background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjGWJdMxgIMPEu4bdTh2-DjFy22nanBgxgFonzc2DVQLhg3kkveDnggnzxn8c6TLtVH-CHX6CpjKOeWxcHofJZuMi7hEn3wtmHO7ek7cLp9T4eKfcaqF1SJ4OziB-7Xmznbnyu2Dnd0Gvw_REb3kHGoHdljoZkaHyicsZIBQoUquOXHqNog6SqZ3ojfIx5MrgMhNYDbW2NqlWLc6XPMu4u2lZMvQRsZYLGVdyko3nDpg-7epa-jYYszjS-LMJgbT99RYoWjSlsGA"/>
+</div>
+<div class="w-6 h-6 rounded-full bg-surface-container-highest border-2 border-surface-container flex items-center justify-center text-[8px]">+5</div>
+</div>
+<span class="text-body-sm text-on-surface-variant">18 Active Candidates</span>
+</div>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-md text-secondary uppercase">Interviewing</span>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">arrow_forward</button>
+</div>
+</div>
+</div>
+<!-- Job Card 3 (Wide) -->
+<div class="bg-surface-container p-stack-lg rounded-xl border border-outline-variant hover:border-primary/50 transition-all group animate-fade-up delay-5">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<div class="bg-surface-container-highest w-14 h-14 rounded-lg flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-tertiary text-3xl">insights</span>
+</div>
+<div>
+<h4 class="font-headline-md text-on-surface mb-0.5">Strategy Analytics Lead</h4>
+<p class="text-on-surface-variant font-body-sm">Data &amp; Insights • Austin, TX</p>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="text-right hidden sm:block">
+<p class="text-on-surface-variant font-label-md uppercase">Pipeline</p>
+<p class="text-headline-md font-bold text-on-surface">128 <span class="text-body-sm font-normal">leads</span></p>
+</div>
+<div class="text-right">
+<p class="text-on-surface-variant font-label-md uppercase">DEI Score</p>
+<div class="flex items-center justify-end gap-1">
+<span class="text-headline-md font-bold text-tertiary">94</span>
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+</div>
+<button class="bg-outline-variant/30 hover:bg-outline-variant/50 p-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- AgentActivityFeed (Persistent Drawer Style) -->
+<div class="lg:col-span-4 space-y-stack-lg">
+<div class="flex items-center justify-between mb-2">
+<h3 class="font-headline-md text-headline-md text-on-surface">Agent Activity</h3>
+<div class="bg-primary/10 text-primary text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest">Live</div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant rounded-xl divide-y divide-outline-variant overflow-hidden">
+<!-- Agent 1 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-primary p-2 bg-primary/10 rounded-lg">architecture</span>
+<span class="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-surface-container-low pulse-glow"></span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">JD Architect</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">2m ago</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Refining Tech Stack requirements for 'Frontend Architect' role.</p>
+<div class="mt-2 h-1 w-full bg-outline-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[75%]"></div>
+</div>
+</div>
+</div>
+<!-- Agent 2 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-secondary p-2 bg-secondary/10 rounded-lg">psychology</span>
+<span class="absolute -bottom-1 -right-1 w-3 h-3 bg-secondary rounded-full border-2 border-surface-container-low pulse-glow"></span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Resume Intelligence</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">Just now</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Batch processing 244 applications for 'Product Manager'...</p>
+</div>
+</div>
+<!-- Agent 3 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-tertiary p-2 bg-tertiary/10 rounded-lg">event_repeat</span>
+<span class="absolute -bottom-1 -right-1 w-3 h-3 bg-tertiary rounded-full border-2 border-surface-container-low pulse-glow"></span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Interview Orchestrator</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">5m ago</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Confirmed 4 panel interviews for tomorrow's sprint.</p>
+</div>
+</div>
+<!-- Agent 4 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3 opacity-60">
+<div class="relative">
+<span class="material-symbols-outlined text-on-surface-variant p-2 bg-surface-container-highest rounded-lg">chat_bubble</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Candidate Companion</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">Idle</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">All applicant queries resolved. Standing by.</p>
+</div>
+</div>
+<!-- Agent 5 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-primary-container p-2 bg-primary-container/10 rounded-lg">summarize</span>
+<span class="absolute -bottom-1 -right-1 w-3 h-3 bg-primary-container rounded-full border-2 border-surface-container-low pulse-glow"></span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Evaluation Synthesis</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">14m ago</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Comparing technical assessment deltas for top 3 candidates.</p>
+</div>
+</div>
+<!-- Agent 6 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-tertiary p-2 bg-tertiary/10 rounded-lg">policy</span>
+<span class="absolute -bottom-1 -right-1 w-3 h-3 bg-tertiary rounded-full border-2 border-surface-container-low pulse-glow"></span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Bias Guardian</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">Active</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Audit complete: Pipeline diversity mirrors local talent market.</p>
+</div>
+</div>
+<!-- Agent 7 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-secondary p-2 bg-secondary/10 rounded-lg">public</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Market Intelligence</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">1h ago</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Salary benchmarks updated for 'Austin' region roles.</p>
+</div>
+</div>
+<!-- Agent 8 -->
+<div class="p-4 hover:bg-surface-container-high transition-colors flex items-start gap-3">
+<div class="relative">
+<span class="material-symbols-outlined text-error p-2 bg-error/10 rounded-lg">healing</span>
+<span class="absolute -bottom-1 -right-1 w-3 h-3 bg-error rounded-full border-2 border-surface-container-low pulse-glow"></span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h5 class="font-label-md font-bold text-on-surface">Self-Healing Ops</h5>
+<span class="text-[10px] text-on-surface-variant font-mono">Active</span>
+</div>
+<p class="text-body-sm text-on-surface-variant leading-tight mt-1">Recalibrated Resume Intelligence latency by 22ms.</p>
+</div>
+</div>
+</div>
+<button class="w-full py-4 rounded-xl border-2 border-dashed border-outline-variant text-on-surface-variant font-label-md hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        DEPLOY CUSTOM AGENT
+                    </button>
+</div>
+</div>
+</div>
+<!-- Floating Action Button -->
+<button class="fixed bottom-10 right-10 bg-primary text-on-primary w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform z-50 group">
+<span class="material-symbols-outlined">add</span>
+<span class="absolute right-16 bg-surface-container-high text-on-surface px-3 py-1.5 rounded-lg text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl border border-outline-variant">Create New Role</span>
+</button>
+</main>
+<script>
+        // Micro-interactions and staggering
+        document.addEventListener('DOMContentLoaded', () => {
+            const elements = document.querySelectorAll('.animate-fade-up');
+            elements.forEach((el, index) => {
+                el.style.animationDelay = `${(index + 1) * 0.1}s`;
+            });
+        });
+        
+        // Interaction Effect: Hovering over cards slightly shifts them
+        document.querySelectorAll('.bg-surface-container-low, .bg-surface-container').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+    </script>
+</body></html>

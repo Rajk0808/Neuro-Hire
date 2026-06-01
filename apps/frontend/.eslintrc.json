@@ -1,0 +1,6 @@
+{
+  "name": "NeuroHire Frontend",
+  "version": "0.1.0",
+  "description": "Next.js 15 frontend for NeuroHire recruitment platform",
+  "include": [".eslintrc.json"]
+}

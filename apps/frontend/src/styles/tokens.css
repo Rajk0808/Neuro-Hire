@@ -1,0 +1,87 @@
+/* Design tokens - Color system */
+:root {
+  /* Surface */
+  --surface: #13131b;
+  --surface-dim: #13131b;
+  --surface-bright: #393841;
+  --surface-container-lowest: #0d0d15;
+  --surface-container-low: #1b1b23;
+  --surface-container: #1f1f27;
+  --surface-container-high: #292932;
+  --surface-container-highest: #34343d;
+
+  /* On surface */
+  --on-surface: #e4e1ed;
+  --on-surface-variant: #c7c4d7;
+  --inverse-surface: #e4e1ed;
+  --inverse-on-surface: #303038;
+
+  /* Outline */
+  --outline: #908fa0;
+  --outline-variant: #464554;
+  --surface-tint: #c0c1ff;
+
+  /* Primary */
+  --primary: #c0c1ff;
+  --on-primary: #1000a9;
+  --primary-container: #8083ff;
+  --on-primary-container: #0d0096;
+  --inverse-primary: #494bd6;
+  --primary-fixed: #e1e0ff;
+  --primary-fixed-dim: #c0c1ff;
+  --on-primary-fixed: #07006c;
+  --on-primary-fixed-variant: #2f2ebe;
+
+  /* Secondary */
+  --secondary: #c3c0ff;
+  --on-secondary: #1d00a5;
+  --secondary-container: #3626ce;
+  --on-secondary-container: #b3b1ff;
+  --secondary-fixed: #e2dfff;
+  --secondary-fixed-dim: #c3c0ff;
+  --on-secondary-fixed: #0f0069;
+  --on-secondary-fixed-variant: #3323cc;
+
+  /* Tertiary */
+  --tertiary: #ffb783;
+  --on-tertiary: #4f2500;
+  --tertiary-container: #d97721;
+  --on-tertiary-container: #452000;
+  --tertiary-fixed: #ffdcc5;
+  --tertiary-fixed-dim: #ffb783;
+  --on-tertiary-fixed: #301400;
+  --on-tertiary-fixed-variant: #703700;
+
+  /* Error */
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+
+  /* Background */
+  --background: #13131b;
+  --on-background: #e4e1ed;
+
+  /* Typography */
+  --headline-md: 24px;
+  --headline-lg: 32px;
+  --display-lg: 48px;
+  --body-sm: 14px;
+  --body-md: 16px;
+  --body-lg: 18px;
+  --label-md: 12px;
+
+  /* Spacing */
+  --stack-sm: 8px;
+  --gutter: 24px;
+  --margin-page: 40px;
+  --stack-md: 16px;
+  --stack-lg: 24px;
+  --unit: 4px;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--on-background);
+  font-family: 'Inter', system-ui, sans-serif;
+}
