@@ -8,3 +8,8 @@ app.mount("/v1", v1_app)
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the NeuroHire API!"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="localhost", port=8000)
+    
