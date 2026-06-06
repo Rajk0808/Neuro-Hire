@@ -1,11 +1,11 @@
 name: Frontend CI
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" , "master" ]
     paths:
       - 'apps/frontend/**' # Triggers only on frontend folder changes
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main" , "master" ]
     paths:
       - 'apps/frontend/**'
 

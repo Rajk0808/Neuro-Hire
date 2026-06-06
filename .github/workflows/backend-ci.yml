@@ -2,11 +2,11 @@ name: Backend CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" , "master" ]
     paths:
       - 'apps/backend/**' # Triggers only on backend folder changes
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main" , "master" ]
     paths:
       - 'apps/backend/**'
 
