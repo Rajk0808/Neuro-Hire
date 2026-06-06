@@ -34,7 +34,7 @@ deprecation==2.1.0
 distro==1.9.0
 docstring_parser==0.18.0
 durationpy==0.10
-en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl#sha256=1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85
+en_core_web_sm @ https://github.com
 et_xmlfile==2.0.0
 Events==0.5
 fabric==3.2.3
@@ -93,9 +93,8 @@ multidict==6.7.1
 murmurhash==1.0.15
 mysql-connector-python==9.6.0
 neo4j==6.2.0
-networkx
-nltk==3.9.4
-numpy==2.4.4
+networkx>=3.0
+numpy>=1.24.0
 oauthlib==3.3.1
 onnxruntime==1.26.0
 openai==2.37.0
@@ -147,7 +146,7 @@ python-dotenv==1.2.2
 python-multipart==0.0.29
 pytz==2026.2
 PyYAML==6.0.3
-reddis==1.0.1
+redis==5.0.1
 referencing==0.37.0
 regex==2026.1.15
 requests==2.33.1
