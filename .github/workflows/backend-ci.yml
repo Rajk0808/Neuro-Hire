@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12' 
-          cache: 'pip' # Built-in caching for python dependencies
+          cache: 'pip' 
           cache-dependency-path: 'apps/backend/requirements.txt'
 
       # 2. Install Dependencies
