@@ -93,7 +93,7 @@ multidict==6.7.1
 murmurhash==1.0.15
 mysql-connector-python==9.6.0
 neo4j==6.2.0
-networkx==3.6.1
+networkx
 nltk==3.9.4
 numpy==2.4.4
 oauthlib==3.3.1
