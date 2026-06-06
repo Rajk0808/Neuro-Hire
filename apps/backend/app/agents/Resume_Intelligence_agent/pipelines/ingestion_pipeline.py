@@ -9,7 +9,7 @@ it includes the following ingestion steps:
 from langgraph.graph import StateGraph, START, END
 from nltk.tokenize import word_tokenize
 from apps.backend.app.agents.Resume_Intelligence_agent.services.ingestion_services.extractor.orchestrator import ResumeOrchestrator, ExtractionMode
-from custom_llm.EmbeddingHuggingFace import QwenMultimodalEmbeddingFunction
+from apps.backend.app.custom_llm.EmbeddingHuggingFace import QwenMultimodalEmbeddingFunction
 from apps.backend.app.agents.Resume_Intelligence_agent.services.ingestion_services.extractor.run import text_extraction 
 from apps.backend.app.agents.Resume_Intelligence_agent.database.clients.opensearch_client import _get_client
 from apps.backend.app.agents.Resume_Intelligence_agent.database.clients.chromaDB_client import chromaDB_client 

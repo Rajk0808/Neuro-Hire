@@ -1,0 +1,49 @@
+# Dependency directories (never commit node_modules)
+node_modules/
+jspm_packages/
+web_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Local environment files (contains keys and passwords)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+! .env.example
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Testing and coverage output
+coverage/
+*.lcov
+.nyc_output
+
+# Build and compilation outputs (uncomment if using TypeScript/build tools)
+# dist/
+# build/
+# *.tsbuildinfo
+
+# Optional caches
+.npm
+.eslintcache
+.stylelintcache
+.node_repl_history
+
+# OS files (optional but recommended)
+.DS_Store
+Thumbs.db

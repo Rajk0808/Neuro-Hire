@@ -1,0 +1,33 @@
+@keyframes scanline {
+  to {
+    transform: translateY(120vh);
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes railMove {
+  to {
+    background-position: 220px 0;
+  }
+}
+
+.pulse-dot {
+  animation: pulseDot 1.6s ease-in-out infinite;
+}
+
+.data-rail {
+  animation: railMove 8s linear infinite;
+  background-image: repeating-linear-gradient(90deg, rgba(100, 216, 203, 0.3) 0 16px, transparent 16px 44px);
+}

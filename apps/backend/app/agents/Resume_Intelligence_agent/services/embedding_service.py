@@ -8,7 +8,7 @@ import json
 import logging
 from typing import List, Dict, Optional, Union
 import numpy as np
-from custom_llm.EmbeddingHuggingFace import QwenMultimodalEmbeddingFunction, get_embeddings
+from apps.backend.app.custom_llm.EmbeddingHuggingFace import QwenMultimodalEmbeddingFunction, get_embeddings
 from dotenv import load_dotenv
 import os
 

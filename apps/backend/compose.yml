@@ -1,0 +1,110 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  chromadb:
+    image: chromadb/chromadb:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/data
+    healthcheck:
+      test: ["executable", "arg"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+      
+  opensearch-node:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9200:9200
+      - 9600:9600
+    healthcheck:
+      test: ["executable", "arg"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch-node:9200
+    healthcheck:
+      test: ["", "arg"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+# --- NEO4J GRAPH DATABASE ---
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j-node
+    ports:
+      - 7474:7474 # HTTP Browser interface
+      - 7687:7687 # Bolt protocol (for your Python connection)
+    environment:
+      # Sets the default username to 'neo4j' and password to 'password'
+      - NEO4J_AUTH=neo4j/password 
+      # Optional: Enables APOC plugins if your project requires graph algorithms/procedures
+      - NEO4J_PLUGINS=["apoc"] 
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["executable", "arg"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+  
+  redis:
+    image: redis:latest
+    container_name: redis-node
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["executable", "arg"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  chromadb_data:
+  redis_data:
