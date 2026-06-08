@@ -1,0 +1,39 @@
+name: Backend Railway CD
+
+on: 
+  push:
+    branches: [ "main" , "master" ]
+    paths:
+      - 'apps/backend/**' # Triggers only on backend folder changes
+  pull_request:
+    branches: [ "main" , "master" ]
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/backend-cd.yml' # Also trigger on changes to this workflow file
+      - '.github/workflows/backend-ci.yml' # Trigger if frontend CI workflow is changed, as it may affect backend deployment
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for Backend changes
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+
+      - name: Install Railway CLI
+        if : steps.filter.outputs.backend == 'true'
+        run: npm install -g @railway/cli
+
+      - name : Deploy to Railway
+        if: steps.filter.outputs.backend == 'true'
+        run: curl -fsSL https://railway.app/install.sh | sh
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        

@@ -1,0 +1,33 @@
+name: Frontend Render CD
+on: 
+  push:
+    branches: [ "main" , "master" ]
+    paths:
+      - 'apps/frontend/**' # Triggers only on frontend folder changes
+  pull_request:
+    branches: [ "main" , "master" ]
+    paths:
+      - 'apps/frontend/**'
+      - '.github/workflows/frontend-cd.yml' # Also trigger on changes to this workflow file
+      - '.github/workflows/frontend-ci.yml' # Trigger if frontend CI workflow is changed, as it may affect frontend deployment
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for Frontend changes
+        id: filter
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            frontend:
+              - 'apps/frontend/**'
+
+      - name : Deploy to Render
+        if: steps.filter.outputs.frontend == 'true'
+        run: echo "Deploying to Render..." # Replace with actual deployment command, e.g., using Render CLI or API
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
