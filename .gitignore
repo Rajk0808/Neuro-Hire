@@ -1,0 +1,21 @@
+.env
+
+
+apps/frontend/.next/
+apps/frontend/node_modules/
+apps/frontend/dist/
+apps/frontend/build/
+apps/frontend/out/
+apps/frontend/.env
+apps/frontend/.env.local
+apps/frontend/.env.development.local
+apps/frontend/.env.test.local
+apps/frontend/.env.production.local
+apps/frontend/coverage/
+apps/frontend/.nyc_output/
+apps/frontend/.eslintcache
+apps/frontend/.stylelintcache
+out/
+
+# Production dependencies
+node_modules/

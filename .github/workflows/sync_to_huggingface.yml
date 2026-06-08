@@ -19,7 +19,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: master
+          ref: master # Ensure we are on the master branch
           fetch-depth: 0
           lfs: true
 
