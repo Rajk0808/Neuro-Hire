@@ -1,4 +1,4 @@
-// File: D:\AI Engineering\project\stitch_neurohire_ai_recruiting_scaffold\neurohire_frontend\frontend\src\app\(auth)\login\page.tsx
+// File: /home/lap-37/Raghvendra Kushwah/Neuro-Hire/apps/frontend/src/app/(auth)/login/page.tsx
 import * as entry from '../../../../../src/app/(auth)/login/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

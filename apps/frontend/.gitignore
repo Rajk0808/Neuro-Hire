@@ -47,3 +47,4 @@ coverage/
 # OS files (optional but recommended)
 .DS_Store
 Thumbs.db
+.next/
