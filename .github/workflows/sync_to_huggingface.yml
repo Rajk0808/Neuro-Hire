@@ -5,6 +5,12 @@ on:
     branches: [master] 
     paths:
       - 'apps/backend/**' # Trigger only on backend folder changes
+      - '.github/workflows/sync_to_huggingface.yml' # Also trigger on changes to this workflow file
+  pull_request:
+    branches: [master]
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/sync_to_huggingface.yml' # Also trigger on
 
 jobs:
   sync-to-hub:
