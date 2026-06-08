@@ -5,7 +5,7 @@ on:
     branches: [master] 
     paths:
       - 'apps/backend/**'
-      - '.github/workflows/sync_to_huggingface.yml' # Also trigger on changes to this workflow file
+      - '.github/workflows/sync_to_huggingface.yml' 
   pull_request:
     branches: [master]
     paths:
@@ -19,10 +19,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: master
           fetch-depth: 0
           lfs: true
 
       - name: Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://harshitajoshi067:$HF_TOKEN@huggingface.co/spaces/harshitajoshi067/Neuro-Hire main
+        run: git push --force https://harshitajoshi067:$HF_TOKEN@huggingface.co/spaces/harshitajoshi067/Neuro-Hire master:main
