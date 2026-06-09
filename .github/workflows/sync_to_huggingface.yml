@@ -16,14 +16,12 @@ jobs:
   sync-to-hub:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          ref: master 
-          fetch-depth: 0
-          lfs: true
+      - name: Install Hugging Face Hub CLI
+        run: pip install huggingface_hub
 
-      - name: Push to HF
+      - name: Upload to Spaces via CLI
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://harshitajoshi067:$HF_TOKEN@huggingface.co/spaces/harshitajoshi067/Neuro-Hire master:main
+        run: |
+          # This uploads the entire folder structure directly into your Space repo
+          huggingface-cli upload harshitajoshi067/Neuro-Hire . . --repo-type space --token=$HF_TOKEN
