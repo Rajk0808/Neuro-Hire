@@ -24,4 +24,4 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # This uploads the entire folder structure directly into your Space repo
-          huggingface-cli upload harshitajoshi067/Neuro-Hire . . --repo-type space --token=$HF_TOKEN
+          hf upload harshitajoshi067/Neuro-Hire . . --repo-type space --token=$HF_TOKEN
