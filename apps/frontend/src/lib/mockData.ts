@@ -5,7 +5,7 @@ import type { Job } from "@/types/job";
 export const jobs: Job[] = [
   {
     id: "ml-lead",
-    title: "Senior ML Engineer",
+    title: "Senior ML/AI Engineer",
     department: "Engineering",
     location: "Bengaluru, Remote",
     seniority: "senior",
@@ -25,7 +25,7 @@ export const jobs: Job[] = [
   },
   {
     id: "product-designer",
-    title: "Principal Product Designer",
+    title: "AI Engineer",
     department: "Design",
     location: "Mumbai",
     seniority: "principal",
@@ -33,7 +33,7 @@ export const jobs: Job[] = [
     salary_min: 3600000,
     salary_max: 5200000,
     currency: "INR",
-    required_skills: ["Systems Thinking", "Figma", "Research"],
+    required_skills: ["Systems Thinking", "Figma", "LLMs", "Prompt Engineering"],
     nice_to_have_skills: ["AI UX", "Design Ops"],
     dei_score: 96,
     applications_count: 132,

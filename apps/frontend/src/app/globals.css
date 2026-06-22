@@ -698,6 +698,20 @@ textarea {
   padding: 0 12px;
 }
 
+.auth-error,
+.auth-success {
+  font-size: 14px;
+  margin: 0;
+}
+
+.auth-error {
+  color: var(--rose);
+}
+
+.auth-success {
+  color: var(--green);
+}
+
 .candidate-portal nav {
   left: 24px;
   position: fixed;

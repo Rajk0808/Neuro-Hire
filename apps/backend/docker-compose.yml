@@ -5,7 +5,14 @@ services:
       - "8080:8080"
     volumes:
       - .:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=neurohire
+      - FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001
     depends_on:
       chromadb:
         condition: service_healthy
@@ -15,14 +22,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      
+
   chromadb:
-    image: chromadb/chromadb:latest
+    image: chromadb/chroma:latest
     ports:
       - "8000:8000"
     volumes:
       - chromadb_data:/data
     healthcheck:
-      test: ["executable", "arg"]
+      test: ["CMD", "chromadb", "health"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -49,7 +60,7 @@ services:
       - 9200:9200
       - 9600:9600
     healthcheck:
-      test: ["executable", "arg"]
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -63,7 +74,7 @@ services:
     environment:
       - OPENSEARCH_HOSTS=http://opensearch-node:9200
     healthcheck:
-      test: ["", "arg"]
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -85,7 +96,7 @@ services:
       - neo4j_data:/data
       - neo4j_logs:/logs
     healthcheck:
-      test: ["executable", "arg"]
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1;"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -97,14 +108,44 @@ services:
     ports:
       - 6379:6379
     healthcheck:
-      test: ["executable", "arg"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 1m30s
       timeout: 30s
       retries: 5
       start_period: 30s
+  
+  postgres:
+    image: postgres:latest
+    container_name: postgres-node
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=neurohire
+    expose:
+      - 5432
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d neurohire || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_web
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: secretpassword
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
 
 volumes:
   neo4j_data:
   neo4j_logs:
   chromadb_data:
   redis_data:
+  postgres_data:
+  pgadmin_data:

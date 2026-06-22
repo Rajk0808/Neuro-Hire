@@ -20,8 +20,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Step 5: Copy your entire project
 COPY . .
 
-# Step 6: Expose the FastAPI port to the host machine
+# Step 6: Set PYTHONPATH so Python can find the app module
+ENV PYTHONPATH=/app
+
+# Step 7: Expose the FastAPI port to the host machine
 EXPOSE 8080
 
-# Step 7: Default command
+# Step 8: Default command
 CMD ["python", "app/main.py"]
