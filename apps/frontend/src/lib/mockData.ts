@@ -2,6 +2,7 @@ import type { AgentEvent } from "@/types/agent";
 import type { Candidate } from "@/types/candidate";
 import type { Job } from "@/types/job";
 
+
 export const jobs: Job[] = [
   {
     id: "ml-lead",

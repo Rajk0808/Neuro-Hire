@@ -6,7 +6,7 @@ from typing import List, Type
 from datetime import datetime
 from crewai.tools import BaseTool
 from pydantic import ConfigDict
-from apps.backend.app.agents.JD_Arcitecture_agent.schema.research_schema import LegalRequirementsCheckerArgs, LegalRequirementsCheckerOutput
+from agents.JD_Arcitecture_agent.schema.research_schema import LegalRequirementsCheckerArgs, LegalRequirementsCheckerOutput
 
 # Legal Database - RAG indexed by jurisdiction and role type
 LEGAL_REQUIREMENTS_DATABASE = {

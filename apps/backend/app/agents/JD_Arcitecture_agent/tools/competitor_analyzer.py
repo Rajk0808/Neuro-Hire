@@ -22,7 +22,7 @@ from bs4 import BeautifulSoup
 import time
 from pydantic import ConfigDict
 from crewai.tools import BaseTool
-from apps.backend.app.agents.JD_Arcitecture_agent.schema.research_schema import (   
+from agents.JD_Arcitecture_agent.schema.research_schema import (   
     CompetitorJDAnalysisArgs, 
     CompetitorJDAnalysisOutput
 )

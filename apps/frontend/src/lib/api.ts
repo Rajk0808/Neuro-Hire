@@ -9,7 +9,7 @@ export const API_BASE_URL = normalizeApiBaseUrl(
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true
+  withCredentials: true // Crucial: This silently passes the access_token cookie
 });
 
 api.interceptors.response.use(
@@ -23,8 +23,36 @@ api.interceptors.response.use(
   }
 );
 
+// ==========================================
+// TYPES DEFINITIONS
+// ==========================================
+type JobCreateResponse = {
+  id: string;
+  generated_text: string;
+  status: string;
+};
+
+// Define an explicit structural type for jobs coming from your DB
+type Job = {
+  id: string;
+  recruiter_email: string;
+  created_at: string;
+  [key: string]: any; // Catch-all for other fields your DB returns
+};
+
+type Candidate = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  skills: string[];
+  experience_years: number;
+  applied_at: string;
+};
+
 type AuthResponse = {
   message: string;
+  token: string;
 };
 
 type RegisterPayload = {
@@ -43,6 +71,9 @@ type ApiErrorPayload = {
   message?: string;
 };
 
+// ==========================================
+// API IMPLEMENTATIONS
+// ==========================================
 const postAuthForm = async <TResponse>(path: string, formData: FormData) => {
   const response = await api.post<TResponse>(path, formData); 
   return response;
@@ -64,11 +95,46 @@ export const registerRecruiter = ({ companyName, email, password }: RegisterPayl
   return postAuthForm<AuthResponse>("/v1/register", formData);
 };
 
+export const candidateApi = {
+  createCandidate: (candidateData: Omit<Candidate, "id" | "applied_at">) => {
+    return api.post("/v1/create-candidate", candidateData);
+  },
+  getCandidate: (candidateId: string) => {
+    return api.get(`/v1/get_candidate/${candidateId}`);
+  },
+  Candidates: (jobReqId: string) => {
+    return api.get(`/v1/candidates/${jobReqId}`);
+  }
+};
+
+export const JobApi = {
+  // 1. Fetch all jobs (Matches @router.get("/jobs"))
+  getJobs: () => {
+    return api.get<{ jobs: Job[] }>("/v1/jobs").then((response) => response.data);
+  },
+  
+  createJob: (request: { jd_query: string }) => {
+    return api.post<JobCreateResponse>("/v1/create-job", { 
+      description_query: request.jd_query 
+    });
+  },
+  
+  // 2. FIXED: Path updated to "/v1/jobs/dei-score" and body key updated to "description"
+  getDEIScore: (jobDescription: string) => {
+    return api.post<{ dei_score: number }>("/v1/jobs/dei-score", { 
+      description: jobDescription 
+    });
+  },
+  
+  getJob: (jobId: string) => {
+    return api.get(`/v1/jobs/${jobId}`).then((response) => response.data);
+  }
+};  
+
 export const getApiErrorMessage = (error: unknown, fallback: string) => {
   if (isAxiosError<ApiErrorPayload>(error)) {
     const detail = error.response?.data?.detail;
 
-    // FastAPI 422 returns detail as an array of validation error objects
     if (Array.isArray(detail)) {
       return detail.map((d) => d.msg ?? "Validation error").join(", ");
     }

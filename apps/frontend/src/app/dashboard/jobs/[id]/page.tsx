@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/atoms/Badge";
 import { CandidateCard } from "@/components/molecules/CandidateCard";
 import { ScoreGauge } from "@/components/molecules/ScoreGauge";
-import { candidates, jobs } from "@/lib/mockData";
+import { candidateApi, JobApi} from "@/lib/api";
 import { formatSalary } from "@/lib/utils";
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const job = jobs.find((item) => item.id === id);
+  const job = await JobApi.getJob(id);
   if (!job) notFound();
 
   return (

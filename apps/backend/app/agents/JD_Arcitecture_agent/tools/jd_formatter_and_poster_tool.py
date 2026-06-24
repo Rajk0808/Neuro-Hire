@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import requests
 from pydantic import ConfigDict
 from crewai.tools import BaseTool
-from apps.backend.app.agents.JD_Arcitecture_agent.schema.research_schema import JDPosterArgs, JDPosterOutput
+from agents.JD_Arcitecture_agent.schema.research_schema import JDPosterArgs, JDPosterOutput
 
 class JDPosterTool(BaseTool):
     """Tool for formatting and posting job descriptions to various platforms."""

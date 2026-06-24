@@ -7,7 +7,7 @@ import requests
 import re
 from typing import List, Dict, Type, ClassVar
 from pydantic import ConfigDict
-from apps.backend.app.agents.JD_Arcitecture_agent.schema.research_schema import (
+from agents.JD_Arcitecture_agent.schema.research_schema import (
     SkillExtractorArgs,
     SkillExtractorOutput,
 )

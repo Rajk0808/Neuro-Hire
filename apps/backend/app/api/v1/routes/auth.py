@@ -70,10 +70,17 @@ async def register(
         return {"message": "User already exists with this email"}, status.HTTP_400_BAD_REQUEST
     
     hashed_password = ph.hash(password)
-    execute_query(
-        "INSERT INTO users (name, email, company_name, password) VALUES (%s, %s, %s, %s)", 
-        (email, email, company_name, hashed_password)
-    )
+    try :
+        execute_query(
+        "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)", 
+        (company_name, email, hashed_password)
+        )
+    except Exception as e:
+        logger.error("Error occurred while registering user: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error occurred while registering user"
+        )
     logger.info("User and workspace registered successfully: %s", email)
 
     # Generate token payload
