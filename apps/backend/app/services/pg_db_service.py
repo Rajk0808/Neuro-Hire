@@ -1,7 +1,8 @@
 from db.session import get_pg_connection
 
-def execute_query(query, params=None):
-    connection = get_pg_connection()
+async def execute_query(query, params=None):
+    res = get_pg_connection()
+    connection = res
     if connection is None:
         return None
     

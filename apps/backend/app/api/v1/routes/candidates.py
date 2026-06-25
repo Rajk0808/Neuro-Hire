@@ -1,6 +1,6 @@
 import logging
 from typing import List
-from apps.backend.app.services.jwt_service import verify_jwt_token
+from services.jwt_service import verify_jwt_token
 from services.pg_db_service import execute_query
 from fastapi import APIRouter, Depends
 from schemas.candidates import GetCandidates

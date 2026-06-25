@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.get("/jobs")
 async def get_jobs(current_user = Depends(verify_jwt_token)):
-    res = execute_query("SELECT * FROM jobs WHERE  ORDER BY created_at DESC;")
+    res = execute_query(f"SELECT * FROM jobs WHERE recruiter_email = '{current_user.email}' ORDER BY created_at DESC")
     logger.info(f"Retrieved jobs: {res}")
     return {"jobs": res}
 

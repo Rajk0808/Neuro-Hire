@@ -1,3 +1,5 @@
+import { JobStatus, Seniority, Job as JobResponse } from "@/types/job";
+import { Candidate as CandidateResponse } from "@/types/candidate";
 import axios, { isAxiosError } from "axios";
 
 const normalizeApiBaseUrl = (url: string) =>
@@ -110,7 +112,7 @@ export const candidateApi = {
 export const JobApi = {
   // 1. Fetch all jobs (Matches @router.get("/jobs"))
   getJobs: () => {
-    return api.get<{ jobs: Job[] }>("/v1/jobs").then((response) => response.data);
+    return api.get<{ jobs: JobResponse[] }>("/v1/jobs").then((response) => response.data);
   },
   
   createJob: (request: { jd_query: string }) => {
@@ -131,6 +133,26 @@ export const JobApi = {
   }
 };  
 
+export const DashboardApi = {
+  getOpenRoles: () => {
+    return api.get<{ open_roles: number }>("/v1/dashboard/open-roles").then((response) => response.data);
+  },
+  getCandidatesCountThisWeek: () => {
+    return api.get<{ candidates_count: number }>("/v1/dashboard/candidates-count-current-week").then((response) => response.data);
+  },
+  getAverageTimeToHire: () => {
+    return api.get<{ average_time_to_hire: number }>("/v1/dashboard/average-time-to-hire").then((response) => response.data);
+  },
+  getDEIScoreAverage: () => {
+    return api.get<{ average_dei_score: number }>("/v1/dashboard/average-dei-score").then((response) => response.data);
+  },
+  getShortlistedCandidates: () => {
+    return api.get<{ shortlisted_candidates: CandidateResponse[]}>("/v1/dashboard/shortlisted-candidates").then((response) => response.data);
+  },
+  getRecentRecruiterActivities: () => {
+    return api.get<{ activities: JobResponse[] }>("/v1/dashboard/recent-recruiter-activities").then((response) => response.data);
+  }
+};
 export const getApiErrorMessage = (error: unknown, fallback: string) => {
   if (isAxiosError<ApiErrorPayload>(error)) {
     const detail = error.response?.data?.detail;

@@ -8,6 +8,7 @@ from api import v1_app
 from contextlib import asynccontextmanager
 from db.session import get_pg_connection
 from services.pg_db_service import execute_query
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Application is starting up... Starting background service.")

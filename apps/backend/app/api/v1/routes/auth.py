@@ -19,21 +19,23 @@ async def login(email: str = Form(...), password: str = Form(...), response: Res
             detail="Database connection failed"
         )
 
-    # 2. Extract values using standard fields: .username and .password
-    # Since frontend appends email as "username", read form_data.username
-    user = execute_query("SELECT * FROM users WHERE email = %s", (email,))
+    res = execute_query("SELECT * FROM users WHERE email = %s", (email,))
+    user = await res
     if not user:
         logger.error("Invalid login credentials")
-        return {"message": "Invalid email or password"}, status.HTTP_401_UNAUTHORIZED
-    
-    userpassword = user[0][2] 
-    if not ph.verify(userpassword, password):
-        logger.error("Invalid login credentials for email: %s", email)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-
+    userpassword = user[0][2] 
+    logging.info("User found, verifying password for email: %s", email)
+    res = await ph.verify(userpassword, password)
+    if not res:
+        logger.error("Invalid login credentials for email: %s", email)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
     token = await create_jwt_token({"sub": email}, None)
     
     response.set_cookie(
@@ -64,14 +66,16 @@ async def register(
         )
 
     # Check for existing user collision
-    existing_user = execute_query("SELECT * FROM users WHERE email = %s", (email,))
+    existing_user = await execute_query("SELECT * FROM users WHERE email = %s", (email,))
     if existing_user:
         logger.error("User already exists with email: %s", email)
-        return {"message": "User already exists with this email"}, status.HTTP_400_BAD_REQUEST
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already exists"
+        )
     hashed_password = ph.hash(password)
     try :
-        execute_query(
+        await execute_query(
         "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)", 
         (company_name, email, hashed_password)
         )

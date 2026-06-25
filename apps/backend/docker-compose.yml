@@ -125,6 +125,9 @@ services:
       - 5432
     ports:
       - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d neurohire || exit 1"]
       interval: 1m30s
@@ -139,6 +142,8 @@ services:
       PGADMIN_DEFAULT_PASSWORD: secretpassword
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - postgres
 
@@ -148,4 +153,6 @@ volumes:
   chromadb_data:
   redis_data:
   postgres_data:
+    driver: local
   pgadmin_data:
+    driver: local
