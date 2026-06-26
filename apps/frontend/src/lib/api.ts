@@ -34,13 +34,6 @@ type JobCreateResponse = {
   status: string;
 };
 
-// Define an explicit structural type for jobs coming from your DB
-type Job = {
-  id: string;
-  recruiter_email: string;
-  created_at: string;
-  [key: string]: any; // Catch-all for other fields your DB returns
-};
 
 type Candidate = {
   id: string;
@@ -146,13 +139,14 @@ export const DashboardApi = {
   getDEIScoreAverage: () => {
     return api.get<{ average_dei_score: number }>("/v1/dashboard/average-dei-score").then((response) => response.data);
   },
-  getShortlistedCandidates: () => {
-    return api.get<{ shortlisted_candidates: CandidateResponse[]}>("/v1/dashboard/shortlisted-candidates").then((response) => response.data);
+  getRecentJobs: () => {
+    return api.get<{}>("/v1/dashboard/recent-jobs").then((response) => response.data);
   },
+
   getRecentRecruiterActivities: () => {
-    return api.get<{ activities: JobResponse[] }>("/v1/dashboard/recent-recruiter-activities").then((response) => response.data);
+    return api.get<{}>("/v1/dashboard/recent-recruiter-activities").then((response) => response.data);
   }
-};
+};  
 export const getApiErrorMessage = (error: unknown, fallback: string) => {
   if (isAxiosError<ApiErrorPayload>(error)) {
     const detail = error.response?.data?.detail;

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/candidates")
 async def get_candidates(request: GetCandidates, current_user = Depends(verify_jwt_token)):
-    res = execute_query("SELECT * FROM candidates WHERE job_req_id = %s", (request.job_id,))
+    res = execute_query("SELECT * FROM candidates JOIN job_applications ja ON candidates.id = ja.candidate_id WHERE ja.job_id = %s", (request.job_id,))
     logger.info(f"Retrieved candidates for job_req_id {request.job_id}: {res}")
     return {"candidates": []}
 

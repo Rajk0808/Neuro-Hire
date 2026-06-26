@@ -1,12 +1,12 @@
-import psycopg2
+import asyncpg
 from dotenv import find_dotenv, load_dotenv
 import os
 
 load_dotenv(find_dotenv())
 
-def get_pg_connection():
+async def get_pg_connection():
     try:
-        connection = psycopg2.connect(
+        connection = await asyncpg.connect(
             host=os.getenv("POSTGRES_HOST", "localhost"),
             port=os.getenv("POSTGRES_PORT", "5432"),
             database=os.getenv("POSTGRES_DB", "neurohire"),

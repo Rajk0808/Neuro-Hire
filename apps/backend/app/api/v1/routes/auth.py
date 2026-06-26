@@ -11,7 +11,7 @@ ph = PasswordHasher()
 
 @router.post("/login")
 async def login(email: str = Form(...), password: str = Form(...), response: Response = None):
-    pg_connection = get_pg_connection()
+    pg_connection = await get_pg_connection()
     if pg_connection is None:
         logger.error("Database connection failed")
         raise HTTPException(
@@ -19,15 +19,14 @@ async def login(email: str = Form(...), password: str = Form(...), response: Res
             detail="Database connection failed"
         )
 
-    res = execute_query("SELECT * FROM users WHERE email = %s", (email,))
-    user = await res
+    user = await execute_query("SELECT * FROM users WHERE email = $1", (email,))
     if not user:
         logger.error("Invalid login credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    userpassword = user[0][2] 
+    userpassword = user[0][3] 
     logging.info("User found, verifying password for email: %s", email)
     res = await ph.verify(userpassword, password)
     if not res:
@@ -57,7 +56,7 @@ async def register(
     password: str = Form(...),  
     response: Response = None
 ):
-    pg_connection = get_pg_connection()
+    pg_connection = await get_pg_connection()
     if pg_connection is None:
         logger.error("Database connection failed")
         raise HTTPException(
@@ -66,7 +65,7 @@ async def register(
         )
 
     # Check for existing user collision
-    existing_user = await execute_query("SELECT * FROM users WHERE email = %s", (email,))
+    existing_user = await execute_query("SELECT * FROM users WHERE email = $1", (email,))
     if existing_user:
         logger.error("User already exists with email: %s", email)
         raise HTTPException(
@@ -76,7 +75,7 @@ async def register(
     hashed_password = ph.hash(password)
     try :
         await execute_query(
-        "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)", 
+        "INSERT INTO users (company_name, email, password) VALUES ($1, $2, $3)", 
         (company_name, email, hashed_password)
         )
     except Exception as e:

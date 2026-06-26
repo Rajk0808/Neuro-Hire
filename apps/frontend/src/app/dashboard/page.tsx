@@ -1,21 +1,68 @@
 "use client";
 
+import { Job } from "@/types/job";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BriefcaseBusiness, Clock, ShieldCheck, Users } from "lucide-react";
 import { AgentActivityFeed } from "@/components/organisms/AgentActivityFeed";
-import { JobCard } from "@/components/molecules/JobCard";
+import { JobCard } from "@/components/molecules/JobCard"; 
 import { ShortlistTable } from "@/components/organisms/ShortlistTable";
-import { jobs } from "@/lib/mockData";
 import { fadeUp, stagger } from "@/animations/variants";
+import { DashboardApi } from "@/lib/api";
 
-const metrics = [
-  { label: "Open roles", value: "42", icon: BriefcaseBusiness, tone: "var(--primary)" },
-  { label: "Candidates this week", value: "1,284", icon: Users, tone: "var(--teal)" },
-  { label: "Avg time-to-hire", value: "14.5d", icon: Clock, tone: "var(--amber)" },
-  { label: "Compliance score", value: "98.2", icon: ShieldCheck, tone: "var(--green)" }
-];
+interface MetricItem {
+  label: string;
+  value: string | number;
+  icon: any;
+  tone: string;
+}
 
 export default function DashboardPage() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [metrics, setMetrics] = useState<MetricItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        // Fetch all metrics and data in parallel safely
+        const [
+          openRolesData,
+          candidateCountData,
+          timeToHireData,
+          deiScoreData,
+          recentJobsData
+        ] = await Promise.all([
+          DashboardApi.getOpenRoles().catch(() => ({ open_roles: 0 })),
+          DashboardApi.getCandidatesCountThisWeek().catch(() => ({ candidates_count: 0 })),
+          DashboardApi.getAverageTimeToHire().catch(() => ({ average_time_to_hire: "32 days" })),
+          DashboardApi.getDEIScoreAverage().catch(() => ({ average_dei_score: 96 })),
+          DashboardApi.getRecentJobs().catch(() => [])
+        ]);
+
+        // Construct structural data arrays with dynamic values
+        setMetrics([
+          { label: "Open roles", value: openRolesData.open_roles, icon: BriefcaseBusiness, tone: "var(--primary)" },
+          { label: "Candidates this week", value: candidateCountData.candidates_count, icon: Users, tone: "var(--teal)" },
+          { label: "Avg time-to-hire", value: timeToHireData.average_time_to_hire, icon: Clock, tone: "var(--amber)" },
+          { label: "Compliance score", value: deiScoreData.average_dei_score, icon: ShieldCheck, tone: "var(--green)" }
+        ]);
+
+        setJobs(Array.isArray(recentJobsData) ? recentJobsData : []);
+      } catch (error) {
+        console.error("Failed to resolve dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return <div className="page-pad">Loading Recruiter Command Center...</div>;
+  }
+
   return (
     <motion.div className="page-pad" variants={stagger} initial="hidden" animate="show">
       <motion.div className="metric-row" variants={stagger}>
@@ -38,7 +85,11 @@ export default function DashboardPage() {
               <h1>Recruiter Dashboard</h1>
             </div>
           </div>
-          <div className="job-grid">{jobs.map((job) => <JobCard job={job} key={job.id} />)}</div>
+          <div className="job-grid">
+            {jobs.map((job) => (
+              <JobCard job={job} key={job.id} />
+            ))}
+          </div>
           <ShortlistTable />
         </motion.section>
         <motion.div style={{ gridColumn: "span 4" }} variants={fadeUp}>
