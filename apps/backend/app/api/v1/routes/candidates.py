@@ -16,7 +16,7 @@ async def get_candidates(request: GetCandidates, current_user = Depends(verify_j
 
 @router.post("/create-candidate")
 async def create_candidate(candidates: List[dict], current_user = Depends(verify_jwt_token)):
-    # Logic to create new candidates in the database
+    
     return {"message": "Candidates created successfully"}
 
 @router.get("/candidates/{candidate_id}")

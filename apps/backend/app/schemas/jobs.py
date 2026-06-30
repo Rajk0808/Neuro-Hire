@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 
 class JobCreateRequest(BaseModel):
     description_query: str 
@@ -32,3 +32,12 @@ class JobResponse(BaseModel):
   updated_at: str
   posted_urls: dict[str, str]
   hiring_manager_id: str
+
+class JobRequest(BaseModel):
+    session_id: str
+    raw_input: str
+
+class HumanFeedbackRequest(BaseModel):
+    session_id: str
+    feedback: Optional[str] = None
+    approved: bool 

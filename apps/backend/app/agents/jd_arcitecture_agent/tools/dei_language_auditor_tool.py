@@ -4,12 +4,10 @@ import re
 import asyncio
 from typing import Type
 from pydantic import ConfigDict
-from agents.JD_Arcitecture_agent.tools.Bias_Guardian_agent import BiasGuardianAgent
-from crewai.tools import BaseTool
-from pydantic import BaseModel
-from agents.JD_Arcitecture_agent.schema.research_schema import DEILanguageArgs, DEILanguageOutput
+from agents.jd_arcitecture_agent.tools.Bias_Guardian_agent import BiasGuardianAgent
+from agents.jd_arcitecture_agent.schema.research_schema import DEILanguageArgs, DEILanguageOutput
 
-class DEILanguageTool(BaseTool):
+class DEILanguageTool():
     """Tool to audit job descriptions for DEI (Diversity, Equity, Inclusion) language."""
     name: str = 'dei_language_auditor'
     description: str = ("use this tool to audit job descriptions for DEI (Diversity, Equity, Inclusion) language. "

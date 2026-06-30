@@ -4,9 +4,8 @@ Updated monthly from official gazette sources."""
 
 from typing import List, Type
 from datetime import datetime
-from crewai.tools import BaseTool
 from pydantic import ConfigDict
-from agents.JD_Arcitecture_agent.schema.research_schema import LegalRequirementsCheckerArgs, LegalRequirementsCheckerOutput
+from agents.jd_arcitecture_agent.schema.research_schema import LegalRequirementsCheckerArgs, LegalRequirementsCheckerOutput
 
 # Legal Database - RAG indexed by jurisdiction and role type
 LEGAL_REQUIREMENTS_DATABASE = {
@@ -361,7 +360,7 @@ for country in ADDITIONAL_COUNTRIES:
         }
 
 
-class LegalRequirementsCheckerTool(BaseTool):
+class LegalRequirementsCheckerTool():
     name: str = "LegalRequirementsCheckerTool"
     description: str = (
     "Use this tool to check legal compliance, labor laws, and mandatory disclosures "
@@ -385,13 +384,12 @@ class LegalRequirementsCheckerTool(BaseTool):
         self.escalation_handler = escalation_handler
         self.database = LEGAL_REQUIREMENTS_DATABASE
     
-    def _run(self, jurisdiction: str, role_type: str, checks: List[str] = None) -> LegalRequirementsCheckerOutput:
+    async def _arun(self, jurisdiction: str, role_type: str, checks: List[str] = None) -> LegalRequirementsCheckerOutput:
         """
-        Synchronous implementation of the legal requirements checker.
+        Asynchronous implementation of the legal requirements checker.
         This is the method called by CrewAI when the tool is used.
         """
         import asyncio
-        import json
         
         if checks is None:
             checks = ["required_disclosures", "prohibited_language", "mandatory_policies"]
@@ -400,8 +398,6 @@ class LegalRequirementsCheckerTool(BaseTool):
         try:
             result = asyncio.run(self.legal_requirements_checker(jurisdiction, role_type, checks))
         except RuntimeError:
-            # If event loop already exists, use run_coroutine_threadsafe
-            import concurrent.futures
             loop = asyncio.new_event_loop()
             result = loop.run_until_complete(self.legal_requirements_checker(jurisdiction, role_type, checks))
             loop.close()
@@ -409,14 +405,6 @@ class LegalRequirementsCheckerTool(BaseTool):
         # Return as LegalRequirementsCheckerOutput
         return result
         
-    async def _arunc(self, args: LegalRequirementsCheckerArgs) -> LegalRequirementsCheckerOutput:
-        """Asynchronous method to check legal requirements."""
-        result = await self.legal_requirements_checker(
-            jurisdiction=args.jurisdiction,
-            role_type=args.role_type,
-            checks=args.checks
-        )
-        return LegalRequirementsCheckerOutput(**result)
     async def legal_requirements_checker(
         self, 
         jurisdiction: str, 
