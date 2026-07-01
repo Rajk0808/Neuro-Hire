@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Literal, Optional
 
 class JobCreateRequest(BaseModel):
+    user_id: str
     description_query: str 
 
 class DeiScoreRequest(BaseModel):

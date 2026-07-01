@@ -5,7 +5,7 @@ from services.pg_db_service import execute_query
 from schemas.jobs import JobCreateRequest, DeiScoreRequest
 from agents.jd_arcitecture_agent import *
 from schemas.jobs import JobRequest, HumanFeedbackRequest
-from agents.jd_arcitecture_agent.asyncrun import generate_or_edit_jd, publish_approved_jd, db_sessions
+from agents.jd_arcitecture_agent.asyncrun import generate_or_edit_jd, publish_approved_jd
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ async def get_jobs(current_user = Depends(verify_jwt_token)):
 
 @router.post("/create-job")
 async def create_job(request: JobCreateRequest, current_user = Depends(verify_jwt_token)):
-    
+    await start_pipeline(JobRequest(session_id=None, raw_input=request.description_query), BackgroundTasks())
     return {"message": "Job created successfully"}
 
 @router.get('/jobs/dei-score')
@@ -28,17 +28,15 @@ async def get_jobs_by_dei_score(request: DeiScoreRequest, current_user = Depends
     res = dei_tool._run(request.description)
     return {"dei_score": res}
 
-@router.post("/jobs/start")
+
 async def start_pipeline(request: JobRequest, background_tasks: BackgroundTasks):
     """Endpoint 1: Instantly registers a user request and runs the crew in the background."""
-    session_id = request.session_id
-    
-    # Initialize isolated session state
-    db_sessions[session_id] = {
-        "status": "queued",
-        "raw_input": request.raw_input,
-        "current_draft": None
-    }
+    user_id = request.user_id
+    session_exists = execute_query("SELECT id FROM sessions WHERE user_id = %s", (user_id,))
+    if not session_exists:
+        execute_query("INSERT INTO sessions (user_id, status) VALUES (%s, %s)", (user_id, 'queued'))
+        session_id = execute_query("SELECT id FROM sessions WHERE user_id = %s", (user_id,))[0]['id']
+    execute_query("UPDATE sessions SET raw_input = %s, status = 'queued' WHERE id = %s", (request.raw_input, session_id))
     
     # Offload the heavy CrewAI execution to background workers so the API responds immediately
     background_tasks.add_task(generate_or_edit_jd, session_id, request.raw_input)
@@ -48,9 +46,10 @@ async def start_pipeline(request: JobRequest, background_tasks: BackgroundTasks)
 @router.get("/jobs/status/{session_id}")
 async def get_status(session_id: str):
     """Endpoint 2: Allows web UIs to poll and fetch the generated draft text."""
-    if session_id not in db_sessions:
+    session_data = execute_query("SELECT * FROM sessions WHERE id = %s", (session_id,))
+    if not session_data:
         raise HTTPException(status_code=404, detail="Session not found")
-    return db_sessions[session_id]
+    return session_data[0]
 
 
 @router.post("/jobs/review")
@@ -58,10 +57,11 @@ async def submit_human_review(request: HumanFeedbackRequest, background_tasks: B
     """Endpoint 3: The non-blocking HITL gateway. Accepts feedback or approvals."""
     session_id = request.session_id
     
-    if session_id not in db_sessions:
+    session_data = execute_query("SELECT * FROM sessions WHERE id = %s", (session_id,))
+    if not session_data:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    session_data = db_sessions[session_id]
+    session_data = session_data[0]
     
     if request.approved:
         # Branch A: Human says CONTINUE TO POST
