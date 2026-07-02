@@ -26,7 +26,7 @@ jd_publisher = Agent(
 # ==========================================
 async def generate_or_edit_jd(session_id: str, raw_text: str):
     """Runs the initial creation or editing loop as a non-blocking background task."""
-    execute_query("UPDATE sessions SET status = 'processing' WHERE id = %s", (session_id,))
+    await execute_query("UPDATE sessions SET status = 'processing' WHERE id = %s", (session_id,))
 
     # Define a focused drafting task
     draft_task = Task(
@@ -41,25 +41,25 @@ async def generate_or_edit_jd(session_id: str, raw_text: str):
     crew_output = await crew.kickoff_async()
     
     # Update our state database with the result
-    execute_query("UPDATE sessions SET status = 'awaiting_human_review', current_draft = %s WHERE id = %s", (crew_output.raw, session_id))
+    await execute_query("UPDATE sessions SET status = 'awaiting_human_review', current_draft = %s WHERE id = %s", (crew_output.raw, session_id))
     print(f"🎯 [Session {session_id}] Draft generation complete. Paused for human approval.")
 
 # ==========================================
 # 3. FLOW 2: ASYNC POSTING EXECUTOR
 # ==========================================
-async def publish_approved_jd(session_id: str, final_jd: str):
+async def publish_approved_jd(session_id: str, final_jd: str, channels: list[str] | None = None):
     """Runs the posting tool asynchronously once the human confirms approval."""
-    execute_query("UPDATE sessions SET status = 'posting' WHERE id = %s", (session_id,))
+    await execute_query("UPDATE sessions SET status = 'posting' WHERE id = %s", (session_id,))
 
     post_task = Task(
         description="Take this approved job description and publish it directly to the boards.",
         expected_output="A confirmation log or deployment string.",
         agent=jd_publisher,
-        inputs={"approved_jd": final_jd}
+        inputs={"approved_jd": final_jd, "channels": channels or []}
     )
     
     crew = Crew(agents=[jd_publisher], tasks=[post_task], verbose=True)
     crew_output = await crew.kickoff_async()
     
-    execute_query("UPDATE sessions SET status = 'completed', posting_result = %s WHERE id = %s", (crew_output.raw, session_id))
+    await execute_query("UPDATE sessions SET status = 'completed', posting_result = %s WHERE id = %s", (crew_output.raw, session_id))
     print(f"🎉 [Session {session_id}] Successfully posted job description!")

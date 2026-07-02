@@ -7,12 +7,13 @@ import httpx
 import re
 from typing import List, Dict, Type, ClassVar
 from pydantic import ConfigDict
+from crewai.tools import BaseTool
 from agents.jd_arcitecture_agent.schema.research_schema import (
     SkillExtractorArgs,
     SkillExtractorOutput,
 )
 
-class SkillsExtractorTool():
+class SkillsExtractorTool(BaseTool):
     """Extract skills from job descriptions and GitHub repos using free APIs asynchronously."""
     name: str = "SkillsExtractor"
     description: str = (
@@ -34,7 +35,7 @@ class SkillsExtractorTool():
     }
 
     # --- MAIN FLOW ENGINE (ASYNC) ---
-    async def _arun(self, role: str, domain: str, source: str) -> SkillExtractorOutput:
+    async def _run(self, role: str, domain: str, source: str) -> SkillExtractorOutput:
         """Extract skills from job description and GitHub repos natively using async."""
         
         # 2. CHANGE: Removed 'await' because text extraction is pure local calculation now

@@ -73,12 +73,8 @@ class JDPosterTool(BaseTool):
                 }
             ]
         }
-    
-    def _run(self, *args, **kwargs) -> str:
-        """Fallback synchronous method mandatory for crewAI BaseTool compliance."""
-        raise NotImplementedError("JDPosterTool only supports asynchronous execution via _arun.")
 
-    async def _arun(
+    async def _run(
         self, 
         title: str, 
         description: str, 

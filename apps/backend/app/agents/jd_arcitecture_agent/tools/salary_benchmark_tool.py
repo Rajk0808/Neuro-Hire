@@ -2,12 +2,13 @@ import os
 import httpx
 from typing import Type
 from pydantic import ConfigDict
+from crewai.tools import BaseTool
 from agents.jd_arcitecture_agent.schema.research_schema import (
     SalaryBenchMarkerArgs, 
     SalaryBenchMarkerOutput, 
 )
 # Research Tool: Salary Benchmarking    
-class SalaryBenchMarkerTool():
+class SalaryBenchMarkerTool(BaseTool):
 
     name: str = "SalaryBenchMarkerTool"
     description: str = (
@@ -20,7 +21,7 @@ class SalaryBenchMarkerTool():
     
     model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
     
-    async def _arun(self, role: str, specialization: str = None, location: str = None, experience_years: str = None, percentile_range: list = None) -> SalaryBenchMarkerOutput:
+    async def _run(self, role: str, specialization: str = None, location: str = None, experience_years: str = None, percentile_range: list = None) -> SalaryBenchMarkerOutput:
         url = "https://job-salary-data.p.rapidapi.com/job-salary"
         querystring = {
             "role": role,

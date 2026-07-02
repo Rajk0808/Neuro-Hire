@@ -19,12 +19,13 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Type, ClassVar
 from pathlib import Path
 from bs4 import BeautifulSoup
+from crewai.tools import BaseTool
 from pydantic import ConfigDict
 from agents.jd_arcitecture_agent.schema.research_schema import (   
     CompetitorJDAnalysisArgs, 
     CompetitorJDAnalysisOutput
 )
-class CompetitorJDAnalyzerTool():
+class CompetitorJDAnalyzerTool(BaseTool):
     """Analyze competitor job descriptions for patterns, gaps, and opportunities."""
     name: str = 'competitor_jd_analyzer'
     description: str = ("Use this tool to analyze competitor job descriptions for a given role and seniority level. "
@@ -76,7 +77,7 @@ class CompetitorJDAnalyzerTool():
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_ttl = timedelta(hours=24)
         
-    async def _arun(self, companies: list, role: str, seniority: str) -> CompetitorJDAnalysisOutput:
+    async def _run(self, companies: list, role: str, seniority: str) -> CompetitorJDAnalysisOutput:
         """
         Analyze competitor JDs for patterns and gaps.
         

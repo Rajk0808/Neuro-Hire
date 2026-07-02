@@ -1,5 +1,4 @@
-import { JobStatus, Seniority, Job as JobResponse } from "@/types/job";
-import { Candidate as CandidateResponse } from "@/types/candidate";
+import { Job as JobResponse } from "@/types/job";
 import axios, { isAxiosError } from "axios";
 
 const normalizeApiBaseUrl = (url: string) =>
@@ -32,6 +31,30 @@ type JobCreateResponse = {
   id: string;
   generated_text: string;
   status: string;
+};
+
+type JobPipelineResponse = {
+  message: string;
+  session_id: string;
+  status: string;
+};
+
+type JobSessionResponse = {
+  id: string;
+  status: string;
+  current_draft?: string | null;
+  raw_draft?: string | null;
+  raw_input?: string | null;
+};
+
+type HumanReviewAction = "retry" | "continue" | "stop";
+
+type HumanReviewPayload = {
+  session_id: string;
+  approved: boolean;
+  action: HumanReviewAction;
+  feedback?: string;
+  selected_channels?: string[];
 };
 
 
@@ -109,16 +132,24 @@ export const JobApi = {
   },
   
   createJob: (request: { jd_query: string }) => {
-    return api.post<JobCreateResponse>("/v1/create-job", { 
+    return api.post<JobPipelineResponse>("/v1/create-job", { 
       description_query: request.jd_query 
-    });
+    }).then((response) => response.data);
+  },
+
+  getJobStatus: (sessionId: string) => {
+    return api.get<JobSessionResponse>(`/v1/jobs/status/${sessionId}`).then((response) => response.data);
+  },
+
+  reviewJob: (payload: HumanReviewPayload) => {
+    return api.post<{ message: string; status: string }>("/v1/jobs/review", payload).then((response) => response.data);
   },
   
-  // 2. FIXED: Path updated to "/v1/jobs/dei-score" and body key updated to "description"
+  // 2. FIXED: Path updated to "/v1/jobs/dei-score" and query param key updated to "description"
   getDEIScore: (jobDescription: string) => {
-    return api.post<{ dei_score: number }>("/v1/jobs/dei-score", { 
-      description: jobDescription 
-    });
+    return api.get<{ dei_score: number }>("/v1/jobs/dei-score", {
+      params: { description: jobDescription }
+    }).then((response) => response.data);
   },
   
   getJob: (jobId: string) => {

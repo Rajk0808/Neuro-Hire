@@ -6,6 +6,7 @@ from typing import List, Type
 from datetime import datetime
 from pydantic import ConfigDict
 from agents.jd_arcitecture_agent.schema.research_schema import LegalRequirementsCheckerArgs, LegalRequirementsCheckerOutput
+from crewai.tools import BaseTool
 
 # Legal Database - RAG indexed by jurisdiction and role type
 LEGAL_REQUIREMENTS_DATABASE = {
@@ -360,7 +361,7 @@ for country in ADDITIONAL_COUNTRIES:
         }
 
 
-class LegalRequirementsCheckerTool():
+class LegalRequirementsCheckerTool(BaseTool):
     name: str = "LegalRequirementsCheckerTool"
     description: str = (
     "Use this tool to check legal compliance, labor laws, and mandatory disclosures "
@@ -384,7 +385,7 @@ class LegalRequirementsCheckerTool():
         self.escalation_handler = escalation_handler
         self.database = LEGAL_REQUIREMENTS_DATABASE
     
-    async def _arun(self, jurisdiction: str, role_type: str, checks: List[str] = None) -> LegalRequirementsCheckerOutput:
+    async def _run(self, jurisdiction: str, role_type: str, checks: List[str] = None) -> LegalRequirementsCheckerOutput:
         """
         Asynchronous implementation of the legal requirements checker.
         This is the method called by CrewAI when the tool is used.
