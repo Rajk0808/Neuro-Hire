@@ -11,18 +11,17 @@ Features:
 - Real-time parser code generation
 """
 
-import requests
-import json
+import asyncio
+import httpx
 import re
 import hashlib
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Type, ClassVar
 from pathlib import Path
 from bs4 import BeautifulSoup
-import time
-from pydantic import ConfigDict
 from crewai.tools import BaseTool
-from agents.JD_Arcitecture_agent.schema.research_schema import (   
+from pydantic import ConfigDict
+from agents.jd_arcitecture_agent.schema.research_schema import (   
     CompetitorJDAnalysisArgs, 
     CompetitorJDAnalysisOutput
 )
@@ -78,7 +77,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_ttl = timedelta(hours=24)
         
-    def _run(self, companies: list, role: str, seniority: str) -> CompetitorJDAnalysisOutput:
+    async def _run(self, companies: list, role: str, seniority: str) -> CompetitorJDAnalysisOutput:
         """
         Analyze competitor JDs for patterns and gaps.
         
@@ -94,8 +93,8 @@ class CompetitorJDAnalyzerTool(BaseTool):
         # Fetch JDs (from cache or web)
         jds_data = {}
         for company in companies:
-            jds_data[company] = self._fetch_jd(company, role, seniority)
-            time.sleep(1)  # Rate limiting
+            jds_data[company] = await self._fetch_jd(company, role, seniority)
+            await asyncio.sleep(1)  # Rate limiting
         
         # Analyze each JD
         analyses = {}
@@ -105,8 +104,8 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         # Comparative analysis
         patterns = self._extract_patterns(analyses)
-        gaps = self._identify_gaps(analyses)
-        opportunities = self._find_opportunities(patterns, gaps)
+        gaps = await self._identify_gaps(analyses)
+        opportunities = await self._find_opportunities(patterns, gaps)
         
         return {
             "companies_analyzed": len(analyses),
@@ -118,7 +117,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
             "timestamp": datetime.now().isoformat()
         }
     
-    def _fetch_jd(self, company: str, role: str, seniority: str) -> Optional[str]:
+    async def _fetch_jd(self, company: str, role: str, seniority: str) -> Optional[str]:
         """Fetch JD from cache or web scrape."""
         cache_key = self._generate_cache_key(company, role, seniority)
         cached_jd = self._get_from_cache(cache_key)
@@ -130,11 +129,11 @@ class CompetitorJDAnalyzerTool(BaseTool):
         # Attempt web scraping from multiple sources
         print(f"⚙️  Fetching JD for {company} ({role}, {seniority})...")
         
-        jd_text = self._scrape_from_careers_page(company, role)
+        jd_text = await self._scrape_from_careers_page(company, role)
         if not jd_text:
-            jd_text = self._scrape_from_job_boards(company, role, seniority)
+            jd_text = await self._scrape_from_job_boards(company, role, seniority)
         if not jd_text:
-            jd_text = self._scrape_from_naukri(company, role, seniority)
+            jd_text = await self._scrape_from_naukri(company, role, seniority)
         
         if jd_text:
             self._save_to_cache(cache_key, jd_text)
@@ -143,7 +142,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         print(f"⚠️  Could not fetch JD for {company}")
         return None
     
-    def _scrape_from_careers_page(self, company: str, role: str) -> Optional[str]:
+    async def _scrape_from_careers_page(self, company: str, role: str) -> Optional[str]:
         """Attempt to scrape from company careers page."""
         try:
             urls = [
@@ -158,21 +157,23 @@ class CompetitorJDAnalyzerTool(BaseTool):
             
             for url in urls:
                 try:
-                    response = requests.get(url, headers=headers, timeout=5)
-                    if response.status_code == 200:
-                        soup = BeautifulSoup(response.text, 'html.parser')
-                        # Extract job listings
-                        job_text = soup.get_text()
-                        if role.lower() in job_text.lower():
-                            return job_text[:5000]  # Limit to 5000 chars
-                except:
+                    async with httpx.AsyncClient() as client:
+                        response = await client.get(url, headers=headers, timeout=5.0)
+                        if response.status_code == 200:
+                            soup = BeautifulSoup(response.text, 'html.parser')
+                            # Extract job listings
+                            job_text = soup.get_text()
+                            if role.lower() in job_text.lower():
+                                return job_text[:5000]  # Limit to 5000 chars
+                except Exception as e:
+                    print(f"  Careers page scraping error: {e}")
                     continue
         except Exception as e:
             print(f"  Careers page scraping error: {e}")
         
         return None
     
-    def _scrape_from_job_boards(self, company: str, role: str, seniority: str) -> Optional[str]:
+    async def _scrape_from_job_boards(self, company: str, role: str, seniority: str) -> Optional[str]:
         """Scrape from public job boards."""
         try:
             # Example: Indeed
@@ -183,18 +184,19 @@ class CompetitorJDAnalyzerTool(BaseTool):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            response = requests.get(url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                job_snippet = soup.find('div', class_='jobsearch-ResultsList')
-                if job_snippet:
-                    return job_snippet.get_text()[:5000]
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=5.0)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    job_snippet = soup.find('div', class_='jobsearch-ResultsList')
+                    if job_snippet:
+                        return job_snippet.get_text()[:5000]
         except Exception as e:
             print(f"  Job board scraping error: {e}")
         
         return None
     
-    def _scrape_from_naukri(self, company: str, role: str, seniority: str) -> Optional[str]:
+    async def _scrape_from_naukri(self, company: str, role: str, seniority: str) -> Optional[str]:
         """Scrape from Naukri job portal (popular in India)."""
         try:
             print(f"  Fetching from Naukri for {company}...")
@@ -213,12 +215,13 @@ class CompetitorJDAnalyzerTool(BaseTool):
                 'Upgrade-Insecure-Requests': '1'
             }
             
-            response = requests.get(url, headers=headers, timeout=8)
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                
-                # Naukri job card containers
-                job_cards = soup.find_all('div', class_='jobTuple')
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, timeout=8)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    
+                    # Naukri job card containers
+                    job_cards = soup.find_all('div', class_='jobTuple')
                 if job_cards:
                     job_texts = []
                     for card in job_cards[:3]:  # Get top 3 results
@@ -236,24 +239,24 @@ class CompetitorJDAnalyzerTool(BaseTool):
                     return main_content.get_text()[:5000]
             
             print(f"  ⚠️  Naukri fetch status: {response.status_code}")
-        except requests.exceptions.Timeout:
+        except httpx.TimeoutException:
             print(f"  Naukri request timeout")
         except Exception as e:
             print(f"  Naukri scraping error: {e}")
         
         return None
     
-    def _analyze_single_jd(self, jd_text: str, company: str) -> Dict:
+    async def _analyze_single_jd(self, jd_text: str, company: str) -> Dict:
         """Analyze structural and content patterns in a single JD."""
         
         # Extract sections
-        sections = self._extract_sections(jd_text)
+        sections = await self._extract_sections(jd_text)
         
         # Extract metadata
-        compensation = self._extract_compensation(jd_text)
-        skills = self._extract_skills(jd_text)
-        differentiators = self._extract_differentiators(jd_text)
-        tone = self._analyze_tone(jd_text)
+        compensation = await self._extract_compensation(jd_text)
+        skills = await self._extract_skills(jd_text)
+        differentiators = await self._extract_differentiators(jd_text)
+        tone = await self._analyze_tone(jd_text)
         
         return {
             "company": company,
@@ -269,7 +272,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
             "section_details": sections
         }
     
-    def _extract_sections(self, jd_text: str) -> Dict[str, str]:
+    async def _extract_sections(self, jd_text: str) -> Dict[str, str]:
         """Extract predefined sections from JD."""
         sections = {}
         
@@ -280,7 +283,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return sections
     
-    def _extract_compensation(self, jd_text: str) -> Dict:
+    async def _extract_compensation(self, jd_text: str) -> Dict:
         """Extract compensation information."""
         compensation = {
             "salary_range": None,
@@ -307,7 +310,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return compensation
     
-    def _extract_skills(self, jd_text: str) -> Dict[str, List[str]]:
+    async def _extract_skills(self, jd_text: str) -> Dict[str, List[str]]:
         """Extract required and nice-to-have skills."""
         
         tech_keywords = [
@@ -340,7 +343,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
             "nice_to_have": list(set(nice_to_have))
         }
     
-    def _extract_differentiators(self, jd_text: str) -> List[str]:
+    async def _extract_differentiators(self, jd_text: str) -> List[str]:
         """Extract unique selling points/differentiators."""
         text_lower = jd_text.lower()
         found = []
@@ -351,7 +354,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return list(set(found))
     
-    def _analyze_tone(self, jd_text: str) -> Dict:
+    async def _analyze_tone(self, jd_text: str) -> Dict:
         """Analyze writing style and tone."""
         text_lower = jd_text.lower()
         
@@ -365,7 +368,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return tone
     
-    def _calculate_keyword_density(self, jd_text: str) -> Dict[str, float]:
+    async def _calculate_keyword_density(self, jd_text: str) -> Dict[str, float]:
         """Calculate density of key terms."""
         words = jd_text.lower().split()
         total_words = len(words)
@@ -379,11 +382,11 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return {k: round((v / total_words) * 100, 2) for k, v in keywords.items()}
     
-    def _extract_patterns(self, analyses: Dict) -> Dict:
+    async def _extract_patterns(self, analyses: Dict) -> Dict:
         """Identify common patterns across competitor JDs."""
         
         patterns = {
-            "common_sections": self._find_common_sections(analyses),
+            "common_sections": await self._find_common_sections(analyses),
             "average_jd_length": round(sum(a["text_length"] for a in analyses.values()) / len(analyses)) if len(analyses) > 0 else 0,
             "most_common_skills": self._find_most_common_skills(analyses),
             "tone_characteristics": self._aggregate_tone(analyses),
@@ -393,7 +396,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return patterns
     
-    def _find_common_sections(self, analyses: Dict) -> List[str]:
+    async def _find_common_sections(self, analyses: Dict) -> List[str]:
         """Find sections that appear in most JDs."""
         section_counts = {}
         
@@ -405,7 +408,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         threshold = len(analyses) / 2
         return [s for s, count in section_counts.items() if count > threshold]
     
-    def _find_most_common_skills(self, analyses: Dict) -> List[str]:
+    async def _find_most_common_skills(self, analyses: Dict) -> List[str]:
         """Identify most frequently required skills."""
         skill_counts = {}
         
@@ -417,7 +420,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         sorted_skills = sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)
         return [skill for skill, _ in sorted_skills[:10]]
     
-    def _aggregate_tone(self, analyses: Dict) -> Dict:
+    async def _aggregate_tone(self, analyses: Dict) -> Dict:
         """Aggregate tone characteristics."""
         tone_summary = {}
         
@@ -430,7 +433,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return tone_summary
     
-    def _analyze_compensation_trends(self, analyses: Dict) -> Dict:
+    async def _analyze_compensation_trends(self, analyses: Dict) -> Dict:
         """Analyze compensation patterns."""
         comp_trend = {
             "companies_with_salary_info": 0,
@@ -453,7 +456,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return comp_trend
     
-    def _count_differentiators(self, analyses: Dict) -> Dict[str, int]:
+    async def _count_differentiators(self, analyses: Dict) -> Dict[str, int]:
         """Count how often each differentiator appears."""
         diff_counts = {}
         
@@ -463,19 +466,19 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return diff_counts
     
-    def _identify_gaps(self, analyses: Dict) -> Dict:
+    async def _identify_gaps(self, analyses: Dict) -> Dict:
         """Identify gaps and missing elements in competitor JDs."""
         
         gaps = {
-            "salary_transparency_gap": self._identify_salary_gaps(analyses),
-            "missing_sections": self._identify_missing_sections(analyses),
-            "missing_differentiators": self._identify_missing_differentiators(analyses),
-            "vague_requirements": self._identify_vague_requirements(analyses)
+            "salary_transparency_gap": await self._identify_salary_gaps(analyses),
+            "missing_sections": await self._identify_missing_sections(analyses),
+            "missing_differentiators": await self._identify_missing_differentiators(analyses),
+            "vague_requirements": await self._identify_vague_requirements(analyses)
         }
         
         return gaps
     
-    def _identify_salary_gaps(self, analyses: Dict) -> Dict:
+    async def _identify_salary_gaps(self, analyses: Dict) -> Dict:
         """Identify companies not disclosing salaries."""
         no_salary = [
             name for name, analysis in analyses.items()
@@ -487,7 +490,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
             "transparency_opportunity": len(no_salary) > 0
         }
     
-    def _identify_missing_sections(self, analyses: Dict) -> Dict:
+    async def _identify_missing_sections(self, analyses: Dict) -> Dict:
         """Identify commonly expected sections that are missing."""
         expected_sections = [
             "about_company", "role_summary", "responsibilities",
@@ -502,7 +505,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return missing
     
-    def _identify_missing_differentiators(self, analyses: Dict) -> Dict:
+    async def _identify_missing_differentiators(self, analyses: Dict) -> Dict:
         """Identify differentiators competitors are NOT highlighting."""
         common_diffs = set()
         
@@ -517,7 +520,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
             "opportunity_count": len(missing_diffs)
         }
     
-    def _identify_vague_requirements(self, analyses: Dict) -> List[str]:
+    async def _identify_vague_requirements(self, analyses: Dict) -> List[str]:
         """Identify vague language in requirements."""
         vague_terms = [
             "strong", "excellent", "experienced", "passion", "ninja",
@@ -536,7 +539,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return vague_by_company
     
-    def _find_opportunities(self, patterns: Dict, gaps: Dict) -> List[Dict]:
+    async def _find_opportunities(self, patterns: Dict, gaps: Dict) -> List[Dict]:
         """Generate actionable opportunities based on patterns and gaps."""
         
         opportunities = []
@@ -582,7 +585,7 @@ class CompetitorJDAnalyzerTool(BaseTool):
         
         return opportunities
     
-    def _generate_parser_code(self, analyses: Dict) -> str:
+    async def _generate_parser_code(self, analyses: Dict) -> str:
         """Generate Python code for parsing JDs based on analysis."""
         
         code = '''"""
@@ -641,12 +644,12 @@ class AutoGeneratedJDParser:
         
         return code
     
-    def _generate_cache_key(self, company: str, role: str, seniority: str) -> str:
+    async def _generate_cache_key(self, company: str, role: str, seniority: str) -> str:
         """Generate cache key."""
         key = f"{company}_{role}_{seniority}"
         return hashlib.md5(key.encode()).hexdigest()
     
-    def _get_from_cache(self, cache_key: str) -> Optional[str]:
+    async def _get_from_cache(self, cache_key: str) -> Optional[str]:
         """Retrieve JD from cache if valid."""
         cache_file = self.cache_dir / f"{cache_key}.json"
         
@@ -654,8 +657,9 @@ class AutoGeneratedJDParser:
             return None
         
         try:
-            with open(cache_file, 'r') as f:
-                data = json.load(f)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(cache_file)
+                data = response.json()
             
             # Check TTL
             cached_time = datetime.fromisoformat(data["timestamp"])
@@ -668,16 +672,16 @@ class AutoGeneratedJDParser:
             print(f"Cache read error: {e}")
             return None
     
-    def _save_to_cache(self, cache_key: str, content: str) -> None:
+    async def _save_to_cache(self, cache_key: str, content: str) -> None:
         """Save JD to cache."""
         cache_file = self.cache_dir / f"{cache_key}.json"
         
         try:
-            with open(cache_file, 'w') as f:
-                json.dump({
+            async with httpx.AsyncClient() as client:
+                await client.put(cache_file, json={
                     "content": content,
                     "timestamp": datetime.now().isoformat()
-                }, f)
+                })
         except Exception as e:
             print(f"Cache write error: {e}")
 

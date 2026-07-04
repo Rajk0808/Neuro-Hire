@@ -1,8 +1,9 @@
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional
 
 class JobCreateRequest(BaseModel):
-    description_query: str 
+    description_query: str
+    user_id: Optional[str] = None
 
 class DeiScoreRequest(BaseModel):
     description: str       
@@ -32,3 +33,15 @@ class JobResponse(BaseModel):
   updated_at: str
   posted_urls: dict[str, str]
   hiring_manager_id: str
+
+class JobRequest(BaseModel):
+    session_id: Optional[str] = None
+    raw_input: str
+    user_id: Optional[int] = None
+
+class HumanFeedbackRequest(BaseModel):
+    session_id: str
+    feedback: Optional[str] = None
+    approved: bool
+    action: Optional[Literal["retry", "continue", "stop"]] = None
+    selected_channels: Optional[list[str]] = None

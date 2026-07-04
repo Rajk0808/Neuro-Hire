@@ -3,7 +3,6 @@ ChromaDB Retrieval Service
 """
 from agents.Resume_Intelligence_agent.database.clients import chromaDB_client
 from chromadb.errors import InvalidDimensionException
-from CustomException import CustomException
 import logging
 logger = logging.getLogger(__name__)
 
@@ -29,5 +28,5 @@ def chromaDB_retrieval(query : str , collection_name : str, n_results : int = 5)
     except Exception as e:
         logger.error(f"Error occurred while retrieving data from ChromaDB: {str(e)}")
         if isinstance(e, InvalidDimensionException):
-            raise CustomException("The dimension of the query does not match the dimension of the collection.")
-        raise CustomException(f"Error occurred while retrieving data from ChromaDB: {str(e)}")
+            raise ValueError("The dimension of the query does not match the dimension of the collection.")
+        raise ValueError(f"Error occurred while retrieving data from ChromaDB: {str(e)}")

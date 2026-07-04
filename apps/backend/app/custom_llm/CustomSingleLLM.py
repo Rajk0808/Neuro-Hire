@@ -2,17 +2,18 @@ from crewai import BaseLLM
 from typing import Any, Dict, List, Optional, Union
 from openai import OpenAI
 import os 
+import httpx
 
 class CustomLLM(BaseLLM):
-    def __init__(self, model: str, api_key: str, endpoint: str, temperature: Optional[float] = None, tools: Optional[List[dict]] = None):
+    def __init__(self, model: str, api_key: str, endpoint: str, temperature: Optional[float] = None, tools: Optional[List[dict]] = None, human_feedback: Optional[str] = None):
         # IMPORTANT: Call super().__init__() with required parameters
         super().__init__(model=model, temperature=temperature)
         
         self.api_key = api_key
         self.endpoint = endpoint
         self.tools = tools
-        
-    def call(
+        self.human_feedback = human_feedback
+    async def call(
         self,
         messages: Union[str, List[Dict[str, str]]],
         tools: Optional[List[dict]] = None,
@@ -26,16 +27,17 @@ class CustomLLM(BaseLLM):
             messages = [
                 {
                     "role" : "system",
-                    "content" : "You are a specialist Job Description Architect for a recruiting platform. Your goal is to produce a complete, market-benchmarked, DEI-clean, legally compliant job description from a hiring manager's rough input. Always reason before acting. Use the available tools to gather grounded data before writing any content. Never fabricate salary ranges, skill requirements, or market data."
+                    "content" : "You are a specialist Job Description Architect for a recruiting platform. Your goal is to produce a complete, market-benchmarked, DEI-clean, legally compliant job description from a hiring manager's rough input. Always reason before acting. Use the available tools to gather grounded data before writing any content. Never fabricate salary ranges, skill requirements, or market data. Expected output is a JSON object with the following keys: 'jd_draft', 'dei_audit', 'salary_benchmark', 'competitor_analysis', 'legal_compliance' all as key-value pairs. If you need to call a tool, use the tool's name as the key and the tool's output as the value. If you need to ask for human feedback, use 'human_feedback' as the key and the feedback request as the value."
                 },
                 {
                     "role" : "user",
                     "content" : messages
                 }
             ]
+    
         client = OpenAI(
-          base_url="https://openrouter.ai/api/v1",
-          api_key=os.getenv("OPENROUTER_API_KEY"),
+          base_url=self.endpoint,
+          api_key=self.api_key,
         )
         
         tools = self.tools
@@ -48,9 +50,9 @@ class CustomLLM(BaseLLM):
                     # For BaseTool objects, the name is in the 'name' attribute
                     tool_name = tool.name if hasattr(tool, 'name') else str(tool)
                     # The callable is the _run method
-                    available_functions[tool_name] = tool._run if hasattr(tool, '_run') else tool
+                    available_functions[tool_name] = tool._arun if hasattr(tool, '_arun') else tool
         # First API call with reasoning
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
           model=self.model,
           messages=messages,
           extra_body={"reasoning": {"enabled": True}}

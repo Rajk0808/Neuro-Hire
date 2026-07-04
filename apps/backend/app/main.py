@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
         res =  await create_db()
         if res:
             print("Database created successfully.")
-        await pg_connection.close()
+        pg_connection.close()
 
     else:
         print("Failed to connect to PostgreSQL.")

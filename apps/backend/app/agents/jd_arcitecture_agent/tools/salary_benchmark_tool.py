@@ -1,9 +1,9 @@
 import os
-import requests
+import httpx
 from typing import Type
 from pydantic import ConfigDict
 from crewai.tools import BaseTool
-from agents.JD_Arcitecture_agent.schema.research_schema import (
+from agents.jd_arcitecture_agent.schema.research_schema import (
     SalaryBenchMarkerArgs, 
     SalaryBenchMarkerOutput, 
 )
@@ -21,7 +21,7 @@ class SalaryBenchMarkerTool(BaseTool):
     
     model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
     
-    def _run(self, role: str, specialization: str = None, location: str = None, experience_years: str = None, percentile_range: list = None) -> SalaryBenchMarkerOutput:
+    async def _run(self, role: str, specialization: str = None, location: str = None, experience_years: str = None, percentile_range: list = None) -> SalaryBenchMarkerOutput:
         url = "https://job-salary-data.p.rapidapi.com/job-salary"
         querystring = {
             "role": role,
@@ -37,7 +37,8 @@ class SalaryBenchMarkerTool(BaseTool):
         }
         
         try:
-            response = requests.get(url, headers=headers, params=querystring)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers=headers, params=querystring)
     
             if response.status_code == 200:
                 data = response.json()
@@ -55,7 +56,7 @@ class SalaryBenchMarkerTool(BaseTool):
                 print(f"Failed to fetch data. Status code: {response.status_code}")
                 print(response.text)
                 return {}
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             print(f"Error occurred while fetching salary data: {e}")
             raise Exception("Failed to fetch salary data from the API.")
 
