@@ -1,7 +1,7 @@
-from db.session import get_pg_connection
+from fastapi import Request
 
 async def execute_query(query, params=None):
-    connection = await get_pg_connection()
+    connection = Request.state.pg_connection if hasattr(Request.state, 'pg_connection') else None
     if connection is None:
         return None
     

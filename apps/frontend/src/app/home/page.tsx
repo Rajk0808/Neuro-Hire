@@ -30,8 +30,8 @@ export default function HomePage() {
             and market intelligence in one animated command center.
           </p>
           <div className="hero-actions">
-            <a href="/dashboard">
-              <Button icon={<ArrowRight size={16} />}>Launch command center</Button>
+            <a href="/login">
+              <Button icon={<ArrowRight size={16} />}>Sign in</Button>
             </a>
             <a href="/candidate">
               <Button variant="ghost">Candidate portal</Button>

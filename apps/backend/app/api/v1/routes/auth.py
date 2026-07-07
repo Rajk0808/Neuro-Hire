@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, Request, Response, HTTPException, status, Depends, Form
-from db.session import get_pg_connection
+from apps.backend.app.db.postgres import get_pg_connection
 from services.pg_db_service import execute_query
 from services.jwt_service import create_jwt_token, deactivate_jwt_token, verify_jwt_token
 from argon2 import PasswordHasher
@@ -35,7 +35,7 @@ async def login(email: str = Form(...), password: str = Form(...), response: Res
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    token = await create_jwt_token({"sub": email}, None)
+    token = await create_jwt_token({"sub": email, "scopes": []}, None)
     
     response.set_cookie(
         key="access_token",
@@ -87,7 +87,7 @@ async def register(
     logger.info("User and workspace registered successfully: %s", email)
 
     # Generate token payload
-    token = await create_jwt_token({"sub": email}, None)
+    token = await create_jwt_token({"sub": email, "scopes": []}, None)
     expires_in = os.getenv("JWT_EXPIRATION_MINUTES", 30) * 60
     # Drop token directly into cookies so the user is logged in instantly
     response.set_cookie(

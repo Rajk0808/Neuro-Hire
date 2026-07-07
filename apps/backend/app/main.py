@@ -1,24 +1,29 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from apps.backend.app.middleware.cors import setup_cors
+from middleware import Oauth2Middleware
 from pathlib import Path
 import os
 import sys
 sys.path.append(str(Path(__file__).parent))
 from api import v1_app 
 from contextlib import asynccontextmanager
-from db.session import get_pg_connection
+from apps.backend.app.db.postgres import get_pg_connection
 from services.pg_db_service import create_db
+from db.redis import get_redis_connection
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Application is starting up... Starting background service.")
-    pg_connection = get_pg_connection()
+    pg_connection = await get_pg_connection()
+    redis_connection = await get_redis_connection()
     if pg_connection:
         print("Successfully connected to PostgreSQL.")
         res =  await create_db()
         if res:
             print("Database created successfully.")
-        pg_connection.close()
+        await pg_connection.close()
+        await redis_connection.aclose()
 
     else:
         print("Failed to connect to PostgreSQL.")
@@ -29,16 +34,10 @@ app = FastAPI(title="NeuroHire API", version="1.0.0", lifespan=lifespan)
 
 frontend_origins = os.getenv("FRONTEND_ORIGINS")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=frontend_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+app.add_middleware(Oauth2Middleware)
+setup_cors(app, frontend_origins.split(",") if frontend_origins else ["*"])
+    
 app.mount("/v1", v1_app)
-
 
 @app.get("/")
 def read_root():
