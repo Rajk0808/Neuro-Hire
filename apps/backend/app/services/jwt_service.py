@@ -39,7 +39,7 @@ async def verify_jwt_token(request : Request, response : Response) -> bool:
             raise HTTPException(status_code=401, detail="Invalid token claims")
     except jwt.ExpiredSignatureError:
         logger.warning("Authentication failed: Token has expired.")
-        token = create_jwt_token({"sub": useremail}, timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))))
+        token = create_jwt_token({"sub": useremail, "scopes": payload.get("scopes")}, timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))))
         response.set_cookie(
             key="access_token",
             value=token,

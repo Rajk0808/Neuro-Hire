@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Response, HTTPException, status, Depends, Form
-from db.session import get_pg_connection
+from apps.backend.app.db.postgres import get_pg_connection
 from services.pg_db_service import execute_query
 from services.jwt_service import verify_jwt_token
 from schemas.candidates import Candidate
