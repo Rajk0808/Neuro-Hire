@@ -1,7 +1,14 @@
 from fastapi import Request
+from apps.backend.app.db.postgres import get_pg_connection
 
 async def execute_query(query, params=None):
     connection = Request.state.pg_connection if hasattr(Request.state, 'pg_connection') else None
+    owns_connection = False
+
+    if connection is None:
+        connection = await get_pg_connection()
+        owns_connection = True
+
     if connection is None:
         return None
     
@@ -11,7 +18,8 @@ async def execute_query(query, params=None):
 
     try:
         # Check if it is a read query (SELECT)
-        if query.strip().lower().startswith("select"):
+        normalized_query = query.strip().lower()
+        if normalized_query.startswith("select") or " returning " in normalized_query:
             # asyncpg uses .fetch() to grab all rows directly. No cursor needed!
             result = await connection.fetch(query, *query_params)
             return result
@@ -28,122 +36,171 @@ async def execute_query(query, params=None):
         
     finally:
         # Crucial: Always close raw connections to prevent pool exhaustion
-        await connection.close()
+        if owns_connection:
+            await connection.close()
 
 async def create_db():
     try:
         await execute_query("""
-CREATE TYPE seniority_level AS ENUM ( 'junior', 'mid', 'senior', 'staff', 'principal' ); 
-CREATE TYPE job_status AS ENUM ( 'draft', 'open', 'screening', 'interviewing', 'closed' ); 
-CREATE TYPE candidate_status AS ENUM ( 'applied', 'screened', 'shortlisted', 'rejected', 'hired', 'interview_scheduled', 'interview_completed', 'interviewing', 'offer_sent' ); 
-CREATE TYPE agent_state AS ENUM ( 'idle', 'running', 'completed', 'failed', 'paused' ); 
+-- =========================================================================
+-- COMPLETE POSTGRESQL SCHEMA SETUP
+-- Generated for AI Recruiting / Agentic Job Board Platform
+-- =========================================================================
 
--- USERS
-CREATE TABLE IF NOT EXISTS users ( 
-    id SERIAL PRIMARY KEY, 
-    name VARCHAR(255) NOT NULL, 
-    email VARCHAR(255) UNIQUE NOT NULL, 
-    password VARCHAR(255) NOT NULL, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
-); 
+-- 1. DROP EXISTING TABLES (In correct dependency order)
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS sessions CASCADE;
+DROP TABLE IF EXISTS agents CASCADE;
+DROP TABLE IF EXISTS job_applications CASCADE;
+DROP TABLE IF EXISTS candidates CASCADE;
+DROP TABLE IF EXISTS jobs CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS companies CASCADE;
 
--- JOBS
-CREATE TABLE IF NOT EXISTS jobs ( 
-    id SERIAL PRIMARY KEY, 
-    title VARCHAR(255) NOT NULL, 
-    description TEXT NOT NULL, 
-    department VARCHAR(255) NOT NULL, 
-    location VARCHAR(255) NOT NULL, 
-    seniority seniority_level NOT NULL, 
-    status job_status NOT NULL DEFAULT 'draft', 
-    salary_min INTEGER NOT NULL, 
-    salary_max INTEGER NOT NULL, 
-    currency VARCHAR(10) NOT NULL, 
-    required_skills TEXT[] NOT NULL, 
-    nice_to_have_skills TEXT[] DEFAULT '{}', 
-    dei_score INTEGER NOT NULL CHECK (dei_score BETWEEN 0 AND 100), 
-    applications_count INTEGER DEFAULT 0, 
-    shortlisted_count INTEGER DEFAULT 0, 
-    posted_url VARCHAR(500), 
-    hiring_manager_id INTEGER NOT NULL, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    CONSTRAINT salary_check CHECK (salary_min <= salary_max), 
-    CONSTRAINT fk_hiring_manager FOREIGN KEY (hiring_manager_id) REFERENCES users(id) ON DELETE CASCADE 
-); 
+-- 2. DROP EXISTING TYPES
+DROP TYPE IF EXISTS seniority_level CASCADE;
+DROP TYPE IF EXISTS job_status CASCADE;
+DROP TYPE IF EXISTS candidate_status CASCADE;
+DROP TYPE IF EXISTS agent_state CASCADE;
 
--- CANDIDATES
-CREATE TABLE IF NOT EXISTS candidates ( 
-    id UUID PRIMARY KEY, 
-    name VARCHAR(255) NOT NULL, 
-    email VARCHAR(255) UNIQUE NOT NULL, 
-    location VARCHAR(255), 
-    current_company VARCHAR(255), 
-    current_role VARCHAR(255), 
-    experience_years INTEGER DEFAULT 0, 
-    skills TEXT[] DEFAULT '{}', 
-    status candidate_status DEFAULT 'applied', 
-    bm25_score DECIMAL(10,4) DEFAULT 0, 
-    vector_score DECIMAL(10,4) DEFAULT 0, 
-    graph_score DECIMAL(10,4) DEFAULT 0, 
-    rrf_score DECIMAL(10,4) DEFAULT 0, 
-    bias_flag BOOLEAN DEFAULT FALSE, 
-    resume_url TEXT NOT NULL, 
-    linkedin_url TEXT, 
-    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
-); 
+-- 3. CREATE CUSTOM ENUM TYPES
+CREATE TYPE seniority_level AS ENUM ('junior', 'mid', 'senior', 'staff', 'principal');
+CREATE TYPE job_status AS ENUM ('draft', 'open', 'screening', 'interviewing', 'closed');
+CREATE TYPE candidate_status AS ENUM ('applied', 'screened', 'shortlisted', 'rejected', 'hired', 'interview_scheduled', 'interview_completed', 'interviewing', 'offer_sent');
+CREATE TYPE agent_state AS ENUM ('idle', 'running', 'completed', 'failed', 'paused');
 
--- JOB APPLICATIONS
-CREATE TABLE IF NOT EXISTS job_applications ( 
-    id SERIAL PRIMARY KEY, 
-    job_id INTEGER NOT NULL, 
-    candidate_id UUID NOT NULL, 
-    status candidate_status DEFAULT 'applied', 
-    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    UNIQUE(job_id, candidate_id), 
-    FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE, 
-    FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE 
-); 
+-- 4. CREATE TABLES
 
--- AGENTS
-CREATE TABLE IF NOT EXISTS agents ( 
-    id UUID PRIMARY KEY, 
-    agent VARCHAR(255) NOT NULL, 
-    state agent_state NOT NULL DEFAULT 'idle', 
-    message TEXT, 
-    progress INTEGER DEFAULT 0 CHECK (progress BETWEEN 0 AND 100), 
-    application_id INTEGER, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    FOREIGN KEY (application_id) REFERENCES job_applications(id) ON DELETE CASCADE 
-); 
+-- COMPANIES TABLE
+CREATE TABLE companies (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    phone VARCHAR(25),
+    location VARCHAR(255),
+    employee_count INTEGER,
+    website VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- SESSIONS
-CREATE TABLE IF NOT EXISTS sessions ( 
-    id UUID PRIMARY KEY, 
-    status VARCHAR(255) NOT NULL, 
-    current_draft VARCHAR(255),
-    raw_draft TEXT,
-    user_id INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE 
-); 
+-- USERS TABLE (Recruiters, Hiring Managers, Admin)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(50) DEFAULT 'recruiter',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- INDEXES
-CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status); 
-CREATE INDEX IF NOT EXISTS idx_jobs_department ON jobs(department); 
-CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location); 
-CREATE INDEX IF NOT EXISTS idx_jobs_hiring_manager ON jobs(hiring_manager_id); 
-CREATE INDEX IF NOT EXISTS idx_candidates_email ON candidates(email); 
-CREATE INDEX IF NOT EXISTS idx_candidates_status ON candidates(status); 
-CREATE INDEX IF NOT EXISTS idx_job_applications_job ON job_applications(job_id); 
-CREATE INDEX IF NOT EXISTS idx_job_applications_candidate ON job_applications(candidate_id); 
-CREATE INDEX IF NOT EXISTS idx_agents_application ON agents(application_id);
+-- JOBS TABLE
+CREATE TABLE jobs (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    requirements TEXT,
+    location VARCHAR(255),
+    salary_range_min NUMERIC(12, 2),
+    salary_range_max NUMERIC(12, 2),
+    seniority seniority_level NOT NULL DEFAULT 'mid',
+    status job_status NOT NULL DEFAULT 'draft',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
+-- CANDIDATES TABLE
+CREATE TABLE candidates (
+    id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(25),
+    resume_url TEXT,
+    portfolio_url TEXT,
+    skills TEXT[],
+    experience_summary TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- JOB APPLICATIONS TABLE
+CREATE TABLE job_applications (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    candidate_id INTEGER NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+    status candidate_status NOT NULL DEFAULT 'applied',
+    cover_letter TEXT,
+    score NUMERIC(5, 2), -- Optional matching score generated by AI agent
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_job_candidate UNIQUE (job_id, candidate_id)
+);
+
+-- AGENTS TABLE (AI Agents screening or automating workflows)
+CREATE TABLE agents (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+    agent_name VARCHAR(100) NOT NULL,
+    configuration JSONB,
+    state agent_state NOT NULL DEFAULT 'idle',
+    last_run_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- SESSIONS TABLE (User Auth Sessions)
+CREATE TABLE sessions (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AUDIT LOGS TABLE
+CREATE TABLE audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(100) NOT NULL,
+    table_name VARCHAR(100),
+    record_id INTEGER,
+    old_values JSONB,
+    new_values JSONB,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. INDEXES FOR PERFORMANCE OPTIMIZATION
+CREATE INDEX idx_jobs_company ON jobs(company_id);
+CREATE INDEX idx_jobs_status ON jobs(status);
+CREATE INDEX idx_job_applications_job ON job_applications(job_id);
+CREATE INDEX idx_job_applications_candidate ON job_applications(candidate_id);
+CREATE INDEX idx_job_applications_status ON job_applications(status);
+CREATE INDEX idx_candidates_email ON candidates(email);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+
+-- 6. AUTOMATIC UPDATED_AT TRIGGER FUNCTION
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply updated_at triggers
+CREATE TRIGGER update_companies_modtime BEFORE UPDATE ON companies FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+CREATE TRIGGER update_jobs_modtime BEFORE UPDATE ON jobs FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+CREATE TRIGGER update_candidates_modtime BEFORE UPDATE ON candidates FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+CREATE TRIGGER update_job_applications_modtime BEFORE UPDATE ON job_applications FOR EACH ROW EXECUTE FUNCTION update_modified_column();
         """)
         return True
     except Exception as e:

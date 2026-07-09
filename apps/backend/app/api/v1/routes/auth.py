@@ -1,13 +1,23 @@
 import os
-from fastapi import APIRouter, Request, Response, HTTPException, status, Depends, Form
+from fastapi import APIRouter, Response, HTTPException, status, Form
 from apps.backend.app.db.postgres import get_pg_connection
 from services.pg_db_service import execute_query
-from services.jwt_service import create_jwt_token, deactivate_jwt_token, verify_jwt_token
-from argon2 import PasswordHasher
+from services.jwt_service import create_jwt_token, deactivate_jwt_token
+from argon2 import PasswordHasher, exceptions as argon2_exceptions
 import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 ph = PasswordHasher()
+
+RECRUITER_SCOPES = [
+    "user:read",
+    "user:write",
+    "job:read",
+    "job:write",
+    "candidate:read",
+    "candidate:write",
+    "analytics:read",
+]
 
 @router.post("/login")
 async def login(email: str = Form(...), password: str = Form(...), response: Response = None):
@@ -18,24 +28,28 @@ async def login(email: str = Form(...), password: str = Form(...), response: Res
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="Database connection failed"
         )
+    await pg_connection.close()
 
-    user = await execute_query("SELECT * FROM users WHERE email = $1", (email,))
+    user = await execute_query("SELECT email, password_hash FROM users WHERE email = $1", (email,))
     if not user:
         logger.error("Invalid login credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    userpassword = user[0][3] 
+    userpassword = user[0]["password_hash"]
     logging.info("User found, verifying password for email: %s", email)
-    res = await ph.verify(userpassword, password)
+    try:
+        res = ph.verify(userpassword, password)
+    except argon2_exceptions.VerifyMismatchError:
+        res = False
     if not res:
         logger.error("Invalid login credentials for email: %s", email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    token = await create_jwt_token({"sub": email, "scopes": []}, None)
+    token = await create_jwt_token({"sub": email, "scopes": RECRUITER_SCOPES}, None)
     
     response.set_cookie(
         key="access_token",
@@ -63,6 +77,7 @@ async def register(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database connection failed"
         )
+    await pg_connection.close()
 
     # Check for existing user collision
     existing_user = await execute_query("SELECT * FROM users WHERE email = $1", (email,))
@@ -74,9 +89,23 @@ async def register(
         )
     hashed_password = ph.hash(password)
     try :
+        company = await execute_query(
+            """
+            INSERT INTO companies (company_name, email, password_hash)
+            VALUES ($1, $2, $3)
+            RETURNING id
+            """,
+            (company_name, email, hashed_password),
+        )
+        if not company:
+            raise RuntimeError("Company insert did not return an id")
+
         await execute_query(
-        "INSERT INTO users (company_name, email, password) VALUES ($1, $2, $3)", 
-        (company_name, email, hashed_password)
+            """
+            INSERT INTO users (company_id, name, email, password_hash)
+            VALUES ($1, $2, $3, $4)
+            """,
+            (company[0]["id"], company_name, email, hashed_password),
         )
     except Exception as e:
         logger.error("Error occurred while registering user: %s", str(e))
@@ -87,8 +116,8 @@ async def register(
     logger.info("User and workspace registered successfully: %s", email)
 
     # Generate token payload
-    token = await create_jwt_token({"sub": email, "scopes": []}, None)
-    expires_in = os.getenv("JWT_EXPIRATION_MINUTES", 30) * 60
+    token = await create_jwt_token({"sub": email, "scopes": RECRUITER_SCOPES}, None)
+    expires_in = int(os.getenv("JWT_EXPIRATION_MINUTES", 30)) * 60
     # Drop token directly into cookies so the user is logged in instantly
     response.set_cookie(
         key="access_token",

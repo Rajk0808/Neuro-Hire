@@ -4,14 +4,16 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - .:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+      - .:/workspace/apps/backend
+    command: uvicorn apps.backend.app.main:app --host 0.0.0.0 --port 8080
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=neurohire
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001
     depends_on:
       chromadb:
@@ -115,7 +117,7 @@ services:
       start_period: 30s
   
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: postgres-node
     environment:
       - POSTGRES_USER=root
@@ -126,7 +128,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d neurohire || exit 1"]

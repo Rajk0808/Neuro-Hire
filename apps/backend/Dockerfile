@@ -1,30 +1,16 @@
-# Step 1: Use Python image with Docker CLI
 FROM python:3.12-slim
 
-# Step 2: Install Docker CLI and bash
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/workspace:/workspace/apps/backend:/workspace/apps/backend/app
 
-RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-26.1.4.tgz | tar xz -C /usr/local/bin --strip-components=1 && \
-    chmod +x /usr/local/bin/docker
+WORKDIR /workspace/apps/backend
 
-# Step 3: Set working directory
-WORKDIR /app
-
-# Step 4: Copy requirements and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Step 5: Copy your entire project
 COPY . .
 
-# Step 6: Set PYTHONPATH so Python can find the app module
-ENV PYTHONPATH=/app
-
-# Step 7: Expose the FastAPI port to the host machine
 EXPOSE 8080
 
-# Step 8: Default command
-CMD ["python", "app/main.py"]
+CMD ["uvicorn", "apps.backend.app.main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -1,9 +1,8 @@
-version: '3.8'
 services:
   node-app:
     build:
-      context: .
-      dockerfile: apps/frontend/Dockerfile
+      context: ../apps/frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
@@ -11,7 +10,172 @@ services:
 
   python-app:
     build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+      context: ../apps/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../apps/backend:/workspace/apps/backend
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=neurohire
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RAILWAY_TOKEN=${RAILWAY_TOKEN:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - LINKEDIN_API_KEY=${LINKEDIN_API_KEY:-}
+      - NAUKRI_API_KEY=${NAUKRI_API_KEY:-}
+      - ATS_API_KEY=${ATS_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in your local .env}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      opensearch-node:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  chromadb:
+    image: chromadb/chroma:latest
     ports:
       - "8000:8000"
+    volumes:
+      - chromadb_data:/data
+    healthcheck:
+      test: ["CMD", "chromadb", "health"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  opensearch-node:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboards
+    ports:
+      - "5601:5601"
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch-node:9200
+    depends_on:
+      opensearch-node:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j-node
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1;"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:latest
+    container_name: redis-node
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:18
+    container_name: postgres-node
+    environment:
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=neurohire
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_18_data:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d neurohire || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_web
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: secretpassword
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  chromadb_data:
+  redis_data:
+  postgres_18_data:
+    driver: local
+  pgadmin_data:
+    driver: local

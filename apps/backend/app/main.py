@@ -10,7 +10,10 @@ from contextlib import asynccontextmanager
 from apps.backend.app.db.postgres import get_pg_connection
 from services.pg_db_service import create_db
 from db.redis import get_redis_connection
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,10 +26,13 @@ async def lifespan(app: FastAPI):
         if res:
             print("Database created successfully.")
         await pg_connection.close()
-        await redis_connection.aclose()
-
     else:
         print("Failed to connect to PostgreSQL.")
+    
+    if redis_connection:
+        await redis_connection.aclose()
+    else:
+        logger.error("Failed to connect to Redis.")
     yield
     print("Application is shutting down... Stopping background service.")
 

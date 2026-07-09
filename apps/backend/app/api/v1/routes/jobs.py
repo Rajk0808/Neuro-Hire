@@ -29,8 +29,9 @@ async def create_job(request: JobCreateRequest, background_tasks: BackgroundTask
     )
 
 @router.get('/jobs/dei-score')
-async def get_jobs_by_dei_score(request: DeiScoreRequest, current_user = Depends(verify_jwt_token)):
+async def get_jobs_by_dei_score(request: DeiScoreRequest):
     dei_tool = DEILanguageTool()
+    print(request.description)
     res = dei_tool._run(request.description)
     return {"dei_score": res}
 

@@ -22,16 +22,16 @@ class JDPosterTool(BaseTool):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
     
     # Declare API keys as Pydantic private attributes or fields to prevent init validation crashes
-    linkedin_api_key: str = Field(default=None, exclude=True)
-    naukri_api_key: str = Field(default=None, exclude=True)
-    ats_api_key: str = Field(default=None, exclude=True)
+    linkedin_api_key: str = Field(default='', exclude=True)
+    naukri_api_key: str = Field(default='', exclude=True)
+    ats_api_key: str = Field(default='', exclude=True)
 
     def __init__(self, **data):
         """Initialize and safely inject API credentials from environment variables."""
         load_dotenv()
-        data['linkedin_api_key'] = os.getenv('LINKEDIN_API_KEY')
-        data['naukri_api_key'] = os.getenv('NAUKRI_API_KEY')
-        data['ats_api_key'] = os.getenv('ATS_API_KEY')
+        data['linkedin_api_key'] = os.getenv('LINKEDIN_API_KEY') if type(os.getenv('LINKEDIN_API_KEY')) == str else ''
+        data['naukri_api_key'] = os.getenv('NAUKRI_API_KEY') if type(os.getenv('NAUKRI_API_KEY')) == str else ''
+        data['ats_api_key'] = os.getenv('ATS_API_KEY') if type(os.getenv('ATS_API_KEY')) == str else ''
         super().__init__(**data)
 
     async def post_to_linkedin(self, jd_data: dict) -> dict:

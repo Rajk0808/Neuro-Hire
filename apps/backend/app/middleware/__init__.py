@@ -1,13 +1,14 @@
-from middleware.auth import Oauth2Middleware
-from middleware.cors import CORSMiddleware
-
-__all__ = ["Oauth2Middleware", "CORSMiddleware"]
-
-EXTEMPTED_ROUTES = {}
+EXTEMPTED_ROUTES = {
+    "",
+    "docs",
+    "openapi.json",
+    "v1/docs",
+    "v1/openapi.json",
+    "v1/login",
+    "v1/register",
+}
 
 SCOPE_REGISTRY = {
-    'v1/login': ['user:read'],
-    'v1/register': ['user:write'],
     'v1/logout': ['user:read'],
     'v1/candidates': ['candidate:read'],
     'v1/create-candidate': ['candidate:write'],
@@ -38,3 +39,8 @@ ALLOWED_SCOPES = {
     'interview:write' : 'read and write access to interview data',
     'analytics:read' : 'read-only access to analytics data'
 }
+
+from middleware.auth import Oauth2Middleware
+from middleware.cors import CORSMiddleware
+
+__all__ = ["Oauth2Middleware", "CORSMiddleware"]

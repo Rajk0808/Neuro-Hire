@@ -1,6 +1,8 @@
 import { Job as JobResponse } from "@/types/job";
 import axios, { isAxiosError } from "axios";
 
+const ACCESS_TOKEN_STORAGE_KEY = "neurohire.accessToken";
+
 const normalizeApiBaseUrl = (url: string) =>
   url.trim().replace(/\/+$/, "").replace(/\/v1$/, "");
 
@@ -13,10 +15,76 @@ const api = axios.create({
   withCredentials: true // Crucial: This silently passes the access_token cookie
 });
 
+const getStoredAccessToken = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+};
+
+const setStoredAccessToken = (token: string) => {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+  }
+};
+
+const clearStoredAccessToken = () => {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  }
+};
+
+const getRequestedScopes = (url = "") => {
+  const path = url.split("?")[0];
+
+  if (path.startsWith("/v1/dashboard")) {
+    return ["analytics:read"];
+  }
+
+  if (path === "/v1/create-job" || path === "/v1/jobs/review") {
+    return ["job:write"];
+  }
+
+  if (path.startsWith("/v1/jobs")) {
+    return ["job:read"];
+  }
+
+  if (path === "/v1/create-candidate") {
+    return ["candidate:write"];
+  }
+
+  if (path.startsWith("/v1/candidates") || path.startsWith("/v1/get_candidate")) {
+    return ["candidate:read"];
+  }
+
+  if (path === "/v1/logout") {
+    return ["user:read"];
+  }
+
+  return [];
+};
+
+api.interceptors.request.use((config) => {
+  const token = getStoredAccessToken();
+  const requestedScopes = getRequestedScopes(config.url);
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (requestedScopes.length > 0) {
+    config.headers["X-Requested-Scopes"] = requestedScopes.join(" ");
+  }
+
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
+      clearStoredAccessToken();
       window.location.href = "/login";
     }
 
@@ -94,6 +162,12 @@ type ApiErrorPayload = {
 // ==========================================
 const postAuthForm = async <TResponse>(path: string, formData: FormData) => {
   const response = await api.post<TResponse>(path, formData); 
+  const token = (response.data as AuthResponse).token;
+
+  if (token) {
+    setStoredAccessToken(token);
+  }
+
   return response;
 };
 
