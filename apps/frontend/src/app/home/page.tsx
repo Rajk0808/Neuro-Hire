@@ -5,18 +5,19 @@ import { ArrowRight, Brain, CircuitBoard, ShieldCheck, Sparkles } from "lucide-r
 import { fadeUp, stagger } from "@/animations/variants";
 import { Button } from "@/components/atoms/Button";
 import { AgentActivityFeed } from "@/components/organisms/AgentActivityFeed";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
     <main className="landing-page">
       <nav className="landing-nav">
-        <a className="brand" href="/home">
+        <Link className="brand" href="/home">
           <span>NH</span>
           <strong>NeuroHire</strong>
-        </a>
+        </Link>
         <div>
-          <a href="/dashboard">Dashboard</a>
-          <a href="/candidate">Candidate portal</a>
+          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/candidate">Candidate portal</Link>
         </div>
       </nav>
       <motion.section className="hero" variants={stagger} initial="hidden" animate="show">
@@ -30,12 +31,12 @@ export default function HomePage() {
             and market intelligence in one animated command center.
           </p>
           <div className="hero-actions">
-            <a href="/login">
+            <Link href="/login">
               <Button icon={<ArrowRight size={16} />}>Sign in</Button>
-            </a>
-            <a href="/candidate">
+            </Link>
+            <Link href="/candidate">
               <Button variant="ghost">Candidate portal</Button>
-            </a>
+            </Link>
           </div>
         </motion.div>
         <motion.div className="hero-console panel scanline" variants={fadeUp}>

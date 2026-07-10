@@ -35,8 +35,9 @@ const clearStoredAccessToken = () => {
   }
 };
 
-const getRequestedScopes = (url = "") => {
+const getRequestedScopes = (url = "", method = "get") => {
   const path = url.split("?")[0];
+  const normalizedMethod = method.toLowerCase();
 
   if (path.startsWith("/v1/dashboard")) {
     return ["analytics:read"];
@@ -54,7 +55,11 @@ const getRequestedScopes = (url = "") => {
     return ["candidate:write"];
   }
 
-  if (path.startsWith("/v1/candidates") || path.startsWith("/v1/get_candidate")) {
+  if (path === "/v1/candidates" && normalizedMethod === "post") {
+    return ["candidate:write"];
+  }
+
+  if (path.startsWith("/v1/candidates")) {
     return ["candidate:read"];
   }
 
@@ -67,7 +72,8 @@ const getRequestedScopes = (url = "") => {
 
 api.interceptors.request.use((config) => {
   const token = getStoredAccessToken();
-  const requestedScopes = getRequestedScopes(config.url);
+  const requestedScopes = getRequestedScopes(config.url, config.method);
+  config.headers = config.headers ?? {};
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -92,15 +98,6 @@ api.interceptors.response.use(
   }
 );
 
-// ==========================================
-// TYPES DEFINITIONS
-// ==========================================
-type JobCreateResponse = {
-  id: string;
-  generated_text: string;
-  status: string;
-};
-
 type JobPipelineResponse = {
   message: string;
   session_id: string;
@@ -113,6 +110,18 @@ type JobSessionResponse = {
   current_draft?: string | null;
   raw_draft?: string | null;
   raw_input?: string | null;
+};
+
+type DeiScoreResponse = {
+  dei_score: {
+    dei_score?: number; // In case they ever add a flat number here
+    bias_score?: number;
+    flagged_words?: string[];
+    replacement_suggestions?: string[];
+    recommendation?: string;
+    escalated?: boolean;
+    escalation_details?: unknown;
+  };
 };
 
 type HumanReviewAction = "retry" | "continue" | "stop";
@@ -187,20 +196,27 @@ export const registerRecruiter = ({ companyName, email, password }: RegisterPayl
   return postAuthForm<AuthResponse>("/v1/register", formData);
 };
 
+export const logoutRecruiter = async () => {
+  try {
+    await api.post<{ message: string }>("/v1/logout");
+  } finally {
+    clearStoredAccessToken();
+  }
+};
+
 export const candidateApi = {
   createCandidate: (candidateData: Omit<Candidate, "id" | "applied_at">) => {
     return api.post("/v1/create-candidate", candidateData);
   },
   getCandidate: (candidateId: string) => {
-    return api.get(`/v1/get_candidate/${candidateId}`);
+    return api.get(`/v1/candidates/${candidateId}`);
   },
   Candidates: (jobReqId: string) => {
-    return api.get(`/v1/candidates/${jobReqId}`);
+    return api.get("/v1/candidates", { params: { job_id: jobReqId } });
   }
 };
 
 export const JobApi = {
-  // 1. Fetch all jobs (Matches @router.get("/jobs"))
   getJobs: () => {
     return api.get<{ jobs: JobResponse[] }>("/v1/jobs").then((response) => response.data);
   },
@@ -219,13 +235,34 @@ export const JobApi = {
     return api.post<{ message: string; status: string }>("/v1/jobs/review", payload).then((response) => response.data);
   },
   
-  // 2. FIXED: Path updated to "/v1/jobs/dei-score" and query param key updated to "description"
+  // Normalizes backend responses that may return either dei_score or bias_score.
   getDEIScore: (jobDescription: string) => {
-    return api.get<{ dei_score: number }>("/v1/jobs/dei-score", {
-      params: { description: jobDescription }
-    }).then((response) => response.data);
-  },
+    return api.post<DeiScoreResponse>('/v1/jobs/dei-score', { description: jobDescription })
+      .then((response) => response.data)
+      .then((data) => {
+        const nestedData = data?.dei_score;
   
+        // 2. Type Guard: Safely ensure the nested object and bias_score exist
+        if (!nestedData || typeof nestedData.bias_score !== 'number') {
+          throw new Error("Invalid response: expected bias_score inside the dei_score object");
+        }
+  
+        // 3. Compute normalized score safely (TypeScript now knows bias_score is a number)
+        const biasScore = nestedData.bias_score;
+        const normalizedDei = Math.max(0, Math.min(100, 100 - biasScore));
+  
+        console.log("DEI Score fetched successfully:", normalizedDei);
+  
+        // 4. Return the normalized structure
+        return {
+          ...data,
+          dei_score: {
+            ...nestedData,
+            dei_score: normalizedDei // Overwrite with the calculated flat score
+          }
+        };
+      });
+  },
   getJob: (jobId: string) => {
     return api.get(`/v1/jobs/${jobId}`).then((response) => response.data);
   }
@@ -245,11 +282,11 @@ export const DashboardApi = {
     return api.get<{ average_dei_score: number }>("/v1/dashboard/average-dei-score").then((response) => response.data);
   },
   getRecentJobs: () => {
-    return api.get<{}>("/v1/dashboard/recent-jobs").then((response) => response.data);
+    return api.get<JobResponse[]>("/v1/dashboard/recent-jobs").then((response) => response.data);
   },
 
   getRecentRecruiterActivities: () => {
-    return api.get<{}>("/v1/dashboard/recent-recruiter-activities").then((response) => response.data);
+    return api.get<Array<Record<string, unknown>>>("/v1/dashboard/recent-recruiter-activities").then((response) => response.data);
   }
 };  
 export const getApiErrorMessage = (error: unknown, fallback: string) => {
@@ -275,3 +312,4 @@ export const getApiErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export default api;
+

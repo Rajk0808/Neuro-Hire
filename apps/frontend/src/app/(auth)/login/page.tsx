@@ -2,6 +2,7 @@
 
 import { Bot } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/atoms/Button";
 import { getApiErrorMessage, loginRecruiter } from "@/lib/api";
 
@@ -55,7 +56,7 @@ export default function LoginPage() {
         <Button type="submit" disabled={loading}>
           {loading ? "Checking access..." : "Enter NeuroHire"}
         </Button>
-        <a href="/register">Create a recruiter workspace</a>
+        <Link href="/register">Create a recruiter workspace</Link>
       </form>
     </main>
   );

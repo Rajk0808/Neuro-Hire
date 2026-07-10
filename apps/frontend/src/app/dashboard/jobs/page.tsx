@@ -4,6 +4,7 @@ import { JobCard } from "@/components/molecules/JobCard";
 import { DashboardApi } from "@/lib/api";
 import { Job } from "@/types/job";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -28,7 +29,7 @@ export default function JobsPage() {
           <span>Requisitions</span>
           <h1>Job Listings</h1>
         </div>
-        <a className="nh-button nh-button-primary" href="/dashboard/jobs/new">New job</a>
+        <Link className="nh-button nh-button-primary" href="/dashboard/jobs/new">New job</Link>
       </div>
       <div className="job-grid">
         {jobs.map((job) => (

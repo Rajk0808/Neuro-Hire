@@ -1,11 +1,13 @@
+import Link from "next/link";
+
 export function CandidatePortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <main className="candidate-portal">
       <nav>
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           <span>NH</span>
           <strong>Candidate Companion</strong>
-        </a>
+        </Link>
       </nav>
       {children}
     </main>

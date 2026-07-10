@@ -12,7 +12,11 @@ SCOPE_REGISTRY = {
     'v1/logout': ['user:read'],
     'v1/candidates': ['candidate:read'],
     'v1/create-candidate': ['candidate:write'],
-    'v1/candidates/{candidate_id}': ['candidate:read', 'candidate:write', 'candidate:delete'],
+    'v1/candidates/{candidate_id}': {
+        'GET': ['candidate:read'],
+        'PUT': ['candidate:write'],
+        'DELETE': ['candidate:delete'],
+    },
     'v1/dashboard/open-roles': ['analytics:read'],  
     'v1/dashboard/candidates-count-current-week': ['analytics:read'],
     'v1/dashboard/average-time-to-hire': ['analytics:read'],

@@ -6,6 +6,8 @@ import { Badge } from "@/components/atoms/Badge";
 import { ScoreBar } from "@/components/atoms/ScoreBar";
 import { formatSalary } from "@/lib/utils";
 import type { Job } from "@/types/job";
+import Link from "next/link";
+import type { Route } from "next";
 
 export function JobCard({ job }: { job: Job }) {
   return (
@@ -28,9 +30,9 @@ export function JobCard({ job }: { job: Job }) {
         <ScoreBar value={job.dei_score} color="var(--amber)" />
         <strong>{job.dei_score}</strong>
       </div>
-      <a href={`/dashboard/jobs/${job.id}`} className="card-link">
+      <Link href={`/dashboard/jobs/${job.id}` as Route} className="card-link">
         Open requisition <ArrowRight size={16} />
-      </a>
+      </Link>
     </motion.article>
   );
 }

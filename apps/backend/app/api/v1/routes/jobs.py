@@ -5,6 +5,7 @@ from services.pg_db_service import execute_query
 from schemas.jobs import JobCreateRequest, DeiScoreRequest
 from agents.jd_arcitecture_agent import *
 from schemas.jobs import JobRequest, HumanFeedbackRequest
+from agents.jd_arcitecture_agent.schema.research_schema import DEILanguageArgs
 from agents.jd_arcitecture_agent.asyncrun import generate_or_edit_jd, publish_approved_jd
 import logging
 
@@ -28,11 +29,11 @@ async def create_job(request: JobCreateRequest, background_tasks: BackgroundTask
         background_tasks,
     )
 
-@router.get('/jobs/dei-score')
+@router.post('/jobs/dei-score')
 async def get_jobs_by_dei_score(request: DeiScoreRequest):
     dei_tool = DEILanguageTool()
-    print(request.description)
-    res = dei_tool._run(request.description)
+    res = await dei_tool._arunc(args=DEILanguageArgs(job_description=request.description, threshold=0.5))
+    print(res)
     return {"dei_score": res}
 
 

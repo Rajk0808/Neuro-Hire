@@ -3,42 +3,67 @@ import { CandidateCard } from "@/components/molecules/CandidateCard";
 import { ScoreGauge } from "@/components/molecules/ScoreGauge";
 import { candidateApi, JobApi } from "@/lib/api";
 import { formatSalary } from "@/lib/utils";
+import type { Candidate } from "@/types/candidate";
+
+type JobDetailView = {
+  id: string;
+  title: string;
+  status: string;
+  department: string;
+  location: string;
+  salary_min: number;
+  salary_max: number;
+  currency: string;
+  required_skills: string[];
+  dei_score: number;
+};
+
+const createFallbackJob = (id: string, title = "Temporary Unavailable Job"): JobDetailView => ({
+  id,
+  title,
+  status: "Offline",
+  department: "Network Error",
+  location: "Server Connection Refused",
+  salary_min: 0,
+  salary_max: 0,
+  currency: "USD",
+  required_skills: ["Backend Connection Error"],
+  dei_score: 0
+});
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  
-  // 1. Initialize safe default structures
-  let job: any = null;
-  let candidatesList: any[] = [];
+
+  let job: JobDetailView | null = null;
+  let candidatesList: Candidate[] = [];
 
   try {
-    // 2. Attempt to fetch data from the backend
-    job = await JobApi.getJob(id);
+    const jobData = (await JobApi.getJob(id)) as Partial<JobDetailView> | null;
+
+    if (jobData && typeof jobData === "object") {
+      job = {
+        ...createFallbackJob(id, "Temporary Unavailable Job"),
+        ...jobData,
+        required_skills: Array.isArray(jobData.required_skills) ? jobData.required_skills : []
+      };
+    }
+
     const candidates = await candidateApi.Candidates(id);
     candidatesList = Array.isArray(candidates) ? candidates : [];
   } catch (error) {
-    // 3. If ECONNREFUSED or any network error happens, catch it here
     console.error("Backend server is offline! Using fallback data shape.", error);
-    
-    // Set fallback object instead of an empty array so page properties don't crash
-    job = {
-      id: id,
-      title: "Temporary Unavailable Job",
-      status: "Offline",
-      department: "Network Error",
-      location: "Server Connection Refused",
-      salary_min: 0,
-      salary_max: 0,
-      currency: "USD",
-      required_skills: ["Backend Connection Error"],
-      dei_score: 0
-    };
+    job = createFallbackJob(id);
     candidatesList = [];
   }
 
-  // Double check in case API resolved but returned null
   if (!job) {
-    job = { title: "Job Not Found", required_skills: [] };
+    job = {
+      ...createFallbackJob(id, "Job Not Found"),
+      status: "unknown",
+      department: "Unknown",
+      location: "Unknown",
+      required_skills: []
+    };
   }
 
   return (

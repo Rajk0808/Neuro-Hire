@@ -4,6 +4,7 @@ import { Job } from "@/types/job";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BriefcaseBusiness, Clock, ShieldCheck, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { AgentActivityFeed } from "@/components/organisms/AgentActivityFeed";
 import { JobCard } from "@/components/molecules/JobCard"; 
 import { ShortlistTable } from "@/components/organisms/ShortlistTable";
@@ -13,7 +14,7 @@ import { DashboardApi } from "@/lib/api";
 interface MetricItem {
   label: string;
   value: string | number;
-  icon: any;
+  icon: LucideIcon;
   tone: string;
 }
 

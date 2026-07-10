@@ -5,25 +5,35 @@ from middleware import EXTEMPTED_ROUTES, SCOPE_REGISTRY
 from starlette.middleware.base import BaseHTTPMiddleware
 import re
 
-def _required_scopes_for_path(path: str):
+def _resolve_scopes(scope_entry, method: str):
+    if isinstance(scope_entry, dict):
+        return scope_entry.get(method, [])
+
+    return scope_entry
+
+
+def _required_scopes_for_path(path: str, method: str):
+    normalized_method = method.upper()
+
     if path in SCOPE_REGISTRY:
-        return SCOPE_REGISTRY[path]
+        return _resolve_scopes(SCOPE_REGISTRY[path], normalized_method)
 
     for route_path, scopes in SCOPE_REGISTRY.items():
         pattern = "^" + re.sub(r"\{[^/]+\}", r"[^/]+", route_path) + "$"
         if re.match(pattern, path):
-            return scopes
+            return _resolve_scopes(scopes, normalized_method)
 
     return []
 
 class Oauth2Middleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path.lstrip("/")
+        method = request.method
 
         if path in EXTEMPTED_ROUTES:
             return await call_next(request)
         
-        required_scopes = _required_scopes_for_path(path)
+        required_scopes = _required_scopes_for_path(path, method)
 
         auth_header = request.headers.get("Authorization")
         token = request.cookies.get("access_token")

@@ -1,6 +1,8 @@
 import { BarChart3, BriefcaseBusiness, CalendarCheck, LayoutDashboard, Plus, Users } from "lucide-react";
 import { SearchBar } from "@/components/molecules/SearchBar";
 import { Button } from "@/components/atoms/Button";
+import Link from "next/link";
+import type { Route } from "next";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -14,21 +16,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="dash-layout">
       <aside className="dash-sidebar">
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           <span>NH</span>
           <div>
             <strong>NeuroHire</strong>
             <small>Autonomous Intelligence</small>
           </div>
-        </a>
+        </Link>
         <nav>
           {nav.map((item) => {
             const Icon = item.icon;
             return (
-              <a href={item.href} key={item.href}>
+              <Link href={item.href as Route} key={item.href}>
                 <Icon size={18} />
                 {item.label}
-              </a>
+              </Link>
             );
           })}
         </nav>

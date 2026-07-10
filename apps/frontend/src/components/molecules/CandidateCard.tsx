@@ -6,6 +6,8 @@ import { Avatar } from "@/components/atoms/Avatar";
 import { Badge } from "@/components/atoms/Badge";
 import { ScoreBar } from "@/components/atoms/ScoreBar";
 import type { Candidate } from "@/types/candidate";
+import Link from "next/link";
+import type { Route } from "next";
 
 export function CandidateCard({ candidate }: { candidate: Candidate }) {
   const score = Math.round(candidate.retrieval_scores.rrf_score * 100);
@@ -28,9 +30,9 @@ export function CandidateCard({ candidate }: { candidate: Candidate }) {
         <ScoreBar value={score} />
         <strong>{score}%</strong>
       </div>
-      <a href={`/dashboard/candidates/${candidate.id}`} className="card-link">
+      <Link href={`/dashboard/candidates/${candidate.id}` as Route} className="card-link">
         View intelligence <ArrowRight size={16} />
-      </a>
+      </Link>
     </motion.article>
   );
 }

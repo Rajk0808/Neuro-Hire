@@ -2,7 +2,7 @@ import os
 from fastapi import APIRouter, Response, HTTPException, status, Form
 from apps.backend.app.db.postgres import get_pg_connection
 from services.pg_db_service import execute_query
-from services.jwt_service import create_jwt_token, deactivate_jwt_token
+from services.jwt_service import create_jwt_token
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
 import logging
 router = APIRouter()
@@ -132,7 +132,11 @@ async def register(
 
 
 @router.post("/logout")
-async def logout(token: str):
-    await deactivate_jwt_token(token)
+async def logout(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        samesite="lax",
+        secure=False,
+    )
     logger.info("User logged out successfully")
     return {"message": "Logout successful"}

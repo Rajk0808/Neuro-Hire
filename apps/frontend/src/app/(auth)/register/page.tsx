@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/atoms/Button";
 import { useState } from "react";
+import Link from "next/link";
 import { getApiErrorMessage, registerRecruiter } from "@/lib/api";
 
 export default function RegisterPage() {
@@ -67,7 +68,7 @@ export default function RegisterPage() {
           {loading ? "Provisioning..." : "Provision agents"}
         </Button>
         
-        <a href="/login">Already have access?</a>
+        <Link href="/login">Already have access?</Link>
       </form>
     </main>
   );

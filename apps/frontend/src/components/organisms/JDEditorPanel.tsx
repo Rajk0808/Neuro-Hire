@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, CircleAlert, CircleCheckBig, RotateCcw, Square, Sparkles } from "lucide-react";
+import { ArrowRight, CircleAlert, CircleCheckBig, RotateCcw, Square, Sparkles, ShieldAlert, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/atoms/Button";
 import { ScoreGauge } from "@/components/molecules/ScoreGauge";
@@ -9,6 +9,36 @@ import { JobApi } from "@/lib/api";
 
 type ReviewAction = "retry" | "continue" | "stop" | null;
 type PostingChannel = "naukri" | "linkedin" | "indeed";
+
+interface EscalationDetails {
+  escalation_id: string;
+  timestamp: string;
+  severity: string;
+  bias_score: number;
+  threshold: number;
+  score_exceeded_by: number;
+  flagged_words_count: number;
+  detailed_analysis: {
+    summary: string;
+    word_frequency_analysis: Record<string, { count: number; suggestion: string }>;
+    patterns_detected: string[];
+    impact_assessment: string;
+  };
+  actionable_recommendations: Array<{ priority: string; action: string }>;
+  urgency: string;
+}
+
+interface BiasData {
+  flagged_words: string[];
+  replacement_suggestions: string[];
+  bias_score: number;
+  recommendation: string;
+  escalated: boolean;
+  escalation_details?: EscalationDetails;
+}
+
+type JobSessionWithBias = Awaited<ReturnType<typeof JobApi.getJobStatus>> & Partial<BiasData>;
+type JobPipelineWithBias = Awaited<ReturnType<typeof JobApi.createJob>> & Partial<BiasData>;
 
 const sessionStorageKey = "neuro-hire.job.session-id";
 const postingChannels: Array<{ key: PostingChannel; label: string; hint: string }> = [
@@ -18,16 +48,19 @@ const postingChannels: Array<{ key: PostingChannel; label: string; hint: string 
 ];
 
 export function JDEditorPanel() {
-  const [query, setQuery] = useState<string>("Senior backend engineer for AI recruiting platform. Needs Python, FastAPI, vector search, AWS, strong mentorship, remote friendly, inclusive wording, salary 40-60 LPA.");
+  const [query, setQuery] = useState<string>(
+    "Senior backend engineer for AI recruiting platform. Needs Python, FastAPI, vector search, AWS, strong mentorship, remote friendly, inclusive wording, salary 40-60 LPA."
+  );
   const [liveDeiScore, setLiveDeiScore] = useState<number>(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<string>("idle");
   const [currentDraft, setCurrentDraft] = useState<string>("");
-  const [reviewAction, setReviewAction] = useState<Exclude<ReviewAction, null> | null>(null);
+  const [reviewAction, setReviewAction] = useState<ReviewAction>(null);
   const [feedback, setFeedback] = useState<string>("");
   const [selectedChannels, setSelectedChannels] = useState<PostingChannel[]>(["naukri", "linkedin"]);
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [biasData, setBiasData] = useState<BiasData | null>(null);
 
   useEffect(() => {
     const savedSessionId = window.localStorage.getItem(sessionStorageKey);
@@ -46,24 +79,21 @@ export function JDEditorPanel() {
   }, [sessionId]);
 
   useEffect(() => {
-    // 1. Don't hit the server if the input is empty
     if (!query.trim()) {
       setLiveDeiScore(0);
       return;
     }
 
-    // 2. Set up a debounce timer
-    const delayDebounceFn = setTimeout(async () => {
+    const delayDebounceFn = window.setTimeout(async () => {
       try {
         const data = await JobApi.getDEIScore(query);
-        setLiveDeiScore(data.dei_score);
+        setLiveDeiScore(data.dei_score.dei_score ?? 0);
       } catch (error) {
         console.error("Failed to fetch live DEI score", error);
       }
-    }, 500); // 500ms delay: waits until user pauses typing
+    }, 500);
 
-    // 3. Clean up the timer if the user types another character before 500ms
-    return () => clearTimeout(delayDebounceFn);
+    return () => window.clearTimeout(delayDebounceFn);
   }, [query]);
 
   useEffect(() => {
@@ -75,7 +105,7 @@ export function JDEditorPanel() {
 
     const refreshSession = async () => {
       try {
-        const data = await JobApi.getJobStatus(sessionId);
+        const data = (await JobApi.getJobStatus(sessionId)) as JobSessionWithBias;
 
         if (!isMounted) {
           return;
@@ -83,6 +113,17 @@ export function JDEditorPanel() {
 
         setSessionStatus(data.status);
         setCurrentDraft(data.current_draft || data.raw_draft || data.raw_input || "");
+
+        if (Array.isArray(data.flagged_words) && data.flagged_words.length > 0) {
+          setBiasData({
+            flagged_words: data.flagged_words,
+            replacement_suggestions: data.replacement_suggestions ?? [],
+            bias_score: typeof data.bias_score === "number" ? data.bias_score : 0,
+            recommendation: data.recommendation ?? "",
+            escalated: Boolean(data.escalated),
+            escalation_details: data.escalation_details
+          });
+        }
 
         if (data.status !== "awaiting_human_review") {
           setReviewAction(null);
@@ -111,18 +152,36 @@ export function JDEditorPanel() {
 
     setIsLoading(true);
     setMessage("");
+    setBiasData(null);
 
     try {
-      const response = await JobApi.createJob({ jd_query: query });
+      const response = (await JobApi.createJob({ jd_query: query })) as JobPipelineWithBias;
       setSessionId(response.session_id);
       setSessionStatus(response.status);
       setMessage(response.message);
+
+      if (Array.isArray(response.flagged_words) && response.flagged_words.length > 0) {
+        setBiasData({
+          flagged_words: response.flagged_words,
+          replacement_suggestions: response.replacement_suggestions ?? [],
+          bias_score: typeof response.bias_score === "number" ? response.bias_score : 0,
+          recommendation: response.recommendation ?? "",
+          escalated: Boolean(response.escalated),
+          escalation_details: response.escalation_details
+        });
+      }
     } catch (error) {
       setMessage("Unable to start the JD pipeline right now.");
       console.error("Failed to create job", error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const applyFix = (flagged: string, replacement: string) => {
+    const regex = new RegExp(`\\b${flagged}\\b`, "gi");
+    setQuery((prev) => prev.replace(regex, replacement));
+    setBiasData(null);
   };
 
   const openReviewAction = (action: Exclude<ReviewAction, null>) => {
@@ -142,7 +201,6 @@ export function JDEditorPanel() {
     }
 
     setIsLoading(true);
-
     try {
       const response = await JobApi.reviewJob({
         session_id: sessionId,
@@ -158,6 +216,7 @@ export function JDEditorPanel() {
 
       if (action === "stop") {
         setCurrentDraft("");
+        setBiasData(null);
       }
 
       if (action === "retry") {
@@ -192,7 +251,9 @@ export function JDEditorPanel() {
 
         <div className="jd-main-grid">
           <div className="jd-editor-column">
-            <label className="jd-label" htmlFor="job-prompt">Prompt</label>
+            <label className="jd-label" htmlFor="job-prompt">
+              Prompt
+            </label>
             <textarea
               id="job-prompt"
               className="jd-textarea"
@@ -209,101 +270,145 @@ export function JDEditorPanel() {
 
             {message && <div className="jd-alert">{message}</div>}
 
+            {biasData && biasData.flagged_words.length > 0 && (
+              <div
+                className="jd-bias-banner"
+                style={{ background: "rgba(239, 68, 68, 0.08)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", margin: "12px 0" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "600", color: "#b91c1c" }}>
+                  <ShieldAlert size={18} />
+                  <span>Bias Guardian Warning (Score: {biasData.bias_score.toFixed(1)}%)</span>
+                </div>
+                <p style={{ fontSize: "14px", margin: "6px 0 10px 0" }}>{biasData.recommendation}</p>
+
+                {biasData.escalation_details?.detailed_analysis.patterns_detected.map((pattern, idx) => (
+                  <span key={idx} className="nh-badge nh-badge-danger" style={{ fontSize: "11px", marginRight: "4px" }}>
+                    {pattern}
+                  </span>
+                ))}
+
+                <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexDirection: "column" }}>
+                  {biasData.flagged_words.map((word, index) => (
+                    <div
+                      key={index}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", padding: "6px 10px", borderRadius: "4px", border: "1px solid #e5e7eb" }}
+                    >
+                      <span style={{ fontSize: "13px" }}>
+                        Replace <strong style={{ color: "#ef4444" }}>{`"${word}"`}</strong> with <strong style={{ color: "#16a34a" }}>{`"${biasData.replacement_suggestions[index] ?? word}"`}</strong>
+                      </span>
+                      <Button
+                        variant="ghost"
+                        icon={<Check size={14} />}
+                        onClick={() => applyFix(word, biasData.replacement_suggestions[index] ?? word)}
+                      >
+                        Apply Fix
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <Button variant="ghost" icon={<RotateCcw size={14} />} onClick={() => openReviewAction("retry")} disabled={!sessionId || isLoading}>
+                    Request Retry
+                  </Button>
+                  <Button icon={<ArrowRight size={14} />} onClick={() => openReviewAction("continue")} disabled={!sessionId || isLoading}>
+                    Continue to Publish
+                  </Button>
+                  <Button variant="danger" icon={<Square size={14} />} onClick={() => openReviewAction("stop")} disabled={!sessionId || isLoading}>
+                    Stop Pipeline
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {currentDraft && (
               <div className="jd-draft-card">
                 <div className="jd-draft-card-head">
                   <strong>Current draft</strong>
-                  {sessionStatus === "processing" && <span className="jd-live-dot" />}
+                  {sessionStatus === "processing" && <span className="nh-badge nh-badge-info">Processing</span>}
                 </div>
                 <p>{currentDraft}</p>
               </div>
             )}
+
+            <div className="jd-insight-copy">
+              <strong>Market intelligence</strong>
+              <p>Recommended range: Rs. 42L-62L. Talent availability is moderate, with stronger pools in Bengaluru and Pune.</p>
+              {biasData?.escalation_details ? (
+                <p style={{ color: "#b91c1c" }}>
+                  <strong>System Notice:</strong> {biasData.escalation_details.detailed_analysis.impact_assessment}
+                </p>
+              ) : (
+                <p>Bias Guardian removed aggressive terms and improved remote work clarity.</p>
+              )}
+            </div>
+
+            {reviewAction && (
+              <motion.div
+                className="hitl-subpanel"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <strong>
+                  {reviewAction === "retry" && "Retry review"}
+                  {reviewAction === "continue" && "Publish review"}
+                  {reviewAction === "stop" && "Stop pipeline"}
+                </strong>
+
+                {reviewAction === "retry" && (
+                  <textarea
+                    className="jd-textarea jd-textarea-small"
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    placeholder="Tell the system what to improve before retrying."
+                  />
+                )}
+
+                {reviewAction === "continue" && (
+                  <div className="channel-grid">
+                    {postingChannels.map((channel) => (
+                      <button
+                        key={channel.key}
+                        type="button"
+                        className={`channel-card ${selectedChannels.includes(channel.key) ? "is-selected" : ""}`}
+                        onClick={() => toggleChannel(channel.key)}
+                      >
+                        <strong>{channel.label}</strong>
+                        <small>{channel.hint}</small>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="hitl-footer">
+                  <Button
+                    icon={reviewAction === "retry" ? <RotateCcw size={14} /> : reviewAction === "continue" ? <CircleCheckBig size={14} /> : <CircleAlert size={14} />}
+                    onClick={() => submitReviewAction(reviewAction as Exclude<ReviewAction, null>)}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Submitting..." : "Confirm Action"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setReviewAction(null)} disabled={isLoading}>
+                    Cancel
+                  </Button>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           <div className="jd-insight-column">
-            <ScoreGauge value={liveDeiScore} label="JD Quality" />
             <div className="jd-insight-copy">
-              <h3>Market intelligence</h3>
-              <p>Recommended range: Rs. 42L-62L. Talent availability is moderate, with stronger pools in Bengaluru and Pune.</p>
-              <p>Bias Guardian removed aggressive terms and improved remote work clarity.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="data-rail" />
-      </section>
-
-      <section className="panel hitl-panel">
-        <div className="section-head hitl-head">
-          <div>
-            <span>Human in the loop</span>
-            <h3>Hold the screen, choose the next step</h3>
-          </div>
-          <CircleAlert size={18} />
-        </div>
-
-        <div className="hitl-actions">
-          <Button variant="danger" icon={<RotateCcw size={16} />} onClick={() => openReviewAction("retry")} disabled={!sessionId || isLoading}>
-            Retry
-          </Button>
-          <Button icon={<CircleCheckBig size={16} />} onClick={() => openReviewAction("continue")} disabled={!sessionId || isLoading}>
-            Continue
-          </Button>
-          <Button variant="ghost" icon={<Square size={16} />} onClick={() => void submitReviewAction("stop")} disabled={!sessionId || isLoading}>
-            Stop
-          </Button>
-        </div>
-
-        <motion.div
-          className="hitl-reveal"
-          animate={{ height: reviewAction ? "auto" : 0, opacity: reviewAction ? 1 : 0 }}
-          transition={{ duration: 0.22 }}
-        >
-          {reviewAction === "retry" && (
-            <div className="hitl-subpanel">
-              <label className="jd-label" htmlFor="retry-feedback">Retry feedback</label>
-              <textarea
-                id="retry-feedback"
-                className="jd-textarea jd-textarea-small"
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                placeholder="Tell the agent what to change in the JD..."
-              />
-              <Button icon={<ArrowRight size={16} />} onClick={() => void submitReviewAction("retry")} disabled={isLoading || !feedback.trim()}>
-                Regenerate draft
-              </Button>
-            </div>
-          )}
-
-          {reviewAction === "continue" && (
-            <div className="hitl-subpanel">
-              <div className="channel-grid">
-                {postingChannels.map((channel) => {
-                  const isSelected = selectedChannels.includes(channel.key);
-
-                  return (
-                    <button
-                      key={channel.key}
-                      type="button"
-                      className={`channel-card ${isSelected ? "is-selected" : ""}`}
-                      onClick={() => toggleChannel(channel.key)}
-                    >
-                      <span>{channel.label}</span>
-                      <small>{channel.hint}</small>
-                    </button>
-                  );
-                })}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <div>
+                  <strong>Live DEI signal</strong>
+                  <p>Tracked against the current prompt and bias corrections.</p>
+                </div>
+                <ScoreGauge value={liveDeiScore} label="DEI" />
               </div>
-              <Button icon={<ArrowRight size={16} />} onClick={() => void submitReviewAction("continue")} disabled={isLoading || selectedChannels.length === 0}>
-                Publish to selected channels
-              </Button>
+              <p>Use the prompt editor to tune language, then publish or route through HITL controls.</p>
             </div>
-          )}
-        </motion.div>
-
-        <div className="hitl-footer">
-          <span className="nh-badge nh-badge-neutral">Same window, no navigation</span>
-          <span className="nh-badge nh-badge-info">Session stored locally</span>
+          </div>
         </div>
       </section>
     </div>
