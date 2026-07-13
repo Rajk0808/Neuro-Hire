@@ -6,7 +6,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=dev
+      NODE_ENV: dev
 
   python-app:
     build:
@@ -17,22 +17,22 @@ services:
     volumes:
       - ../apps/backend:/workspace/apps/backend
     environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=root
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=neurohire
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RAILWAY_TOKEN=${RAILWAY_TOKEN:-}
-      - HF_TOKEN=${HF_TOKEN:-}
-      - LINKEDIN_API_KEY=${LINKEDIN_API_KEY:-}
-      - NAUKRI_API_KEY=${NAUKRI_API_KEY:-}
-      - ATS_API_KEY=${ATS_API_KEY:-}
-      - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in your local .env}
-      - ALGORITHM=${ALGORITHM:-HS256}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      - FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: neurohire
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RAILWAY_TOKEN: ${RAILWAY_TOKEN:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      LINKEDIN_API_KEY: ${LINKEDIN_API_KEY:-}
+      NAUKRI_API_KEY: ${NAUKRI_API_KEY:-}
+      ATS_API_KEY: ${ATS_API_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:-}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      FRONTEND_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://0.0.0.0:3000,http://localhost:3001,http://127.0.0.1:3001,http://0.0.0.0:3001
     depends_on:
       chromadb:
         condition: service_healthy
@@ -50,24 +50,24 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - chromadb_data:/data
+      - chromadb_data:/chroma/chroma
     healthcheck:
-      test: ["CMD", "chromadb", "health"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   opensearch-node:
     image: opensearchproject/opensearch:latest
     container_name: opensearch-node
     environment:
-      - cluster.name=opensearch-cluster
-      - node.name=opensearch-node
-      - discovery.type=single-node
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-      - DISABLE_SECURITY_PLUGIN=true
+      cluster.name: opensearch-cluster
+      node.name: opensearch-node
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_SECURITY_PLUGIN: "true"
     ulimits:
       memlock:
         soft: -1
@@ -79,11 +79,11 @@ services:
       - "9200:9200"
       - "9600:9600"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=10s"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:latest
@@ -91,16 +91,16 @@ services:
     ports:
       - "5601:5601"
     environment:
-      - OPENSEARCH_HOSTS=http://opensearch-node:9200
+      OPENSEARCH_HOSTS: http://opensearch-node:9200
     depends_on:
       opensearch-node:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   neo4j:
     image: neo4j:latest
@@ -109,17 +109,17 @@ services:
       - "7474:7474"
       - "7687:7687"
     environment:
-      - NEO4J_AUTH=neo4j/password
-      - NEO4J_PLUGINS=["apoc"]
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1;"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   redis:
     image: redis:latest
@@ -130,31 +130,29 @@ services:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
 
   postgres:
-    image: postgres:18
+    image: postgres:17 # Note: Adjusted to 17 as v18 is not standard/released yet
     container_name: postgres-node
     environment:
-      - POSTGRES_HOST=localhost
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=root
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=neurohire
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: neurohire
     ports:
       - "5432:5432"
     volumes:
-      - postgres_18_data:/var/lib/postgresql
+      - postgres_17_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d neurohire || exit 1"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "pg_isready -U root -d neurohire"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   pgadmin:
     image: dpage/pgadmin4
@@ -175,7 +173,7 @@ volumes:
   neo4j_logs:
   chromadb_data:
   redis_data:
-  postgres_18_data:
+  postgres_17_data:
     driver: local
   pgadmin_data:
     driver: local

@@ -301,6 +301,11 @@ textarea {
   color: var(--primary);
 }
 
+.nh-badge-warning {
+  background: rgba(255, 188, 115, 0.12);
+  color: var(--amber);
+}
+
 .nh-badge-danger {
   background: rgba(255, 143, 163, 0.12);
   color: var(--rose);
@@ -799,28 +804,30 @@ textarea {
 .score-ring {
   border-radius: 999px;
   display: grid;
-  height: 170px;
+  height: 150px;
   place-items: center;
-  width: 170px;
+  width: 150px;
 }
 
 .score-ring > div {
   background: var(--panel);
   border-radius: inherit;
   display: grid;
-  height: 128px;
+  height: 112px;
   place-items: center;
   text-align: center;
-  width: 128px;
+  width: 112px;
 }
 
 .score-ring strong {
-  font-size: 38px;
+  font-size: 30px;
+  line-height: 1;
 }
 
 .score-ring span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

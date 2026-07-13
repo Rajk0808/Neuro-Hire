@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("/jobs")
 async def get_jobs(current_user = Depends(verify_jwt_token)):
-    res = await execute_query("SELECT * FROM jobs WHERE recruiter_email = %s ORDER BY created_at DESC", (current_user["useremail"],))
+    res = await execute_query("SELECT * FROM jobs WHERE recruiter_email = $1 ORDER BY created_at DESC", (current_user["useremail"],))
     logger.info(f"Retrieved jobs: {res}")
     return {"jobs": res}
 
@@ -38,7 +38,7 @@ async def get_jobs_by_dei_score(request: DeiScoreRequest):
 
 
 async def get_user_id_by_email(email: str) -> int:
-    user_rows = await execute_query("SELECT id FROM users WHERE email = %s", (email,))
+    user_rows = await execute_query("SELECT id FROM users WHERE email = $1", (email,))
     if not user_rows:
         raise HTTPException(status_code=404, detail="User not found")
     return user_rows[0]["id"]
@@ -52,8 +52,7 @@ async def start_pipeline(request: JobRequest, background_tasks: BackgroundTasks)
 
     session_id = str(uuid4())
     await execute_query(
-        "INSERT INTO sessions (id, user_id, status, raw_draft) VALUES (%s, %s, %s, %s)",
-        (session_id, user_id, "queued", request.raw_input),
+        query = f"INSERT INTO sessions (id, user_id, status, raw_draft) VALUES ({session_id}, {user_id}, 'queued', {request.raw_input})",
     )
     
     # Offload the heavy CrewAI execution to background workers so the API responds immediately

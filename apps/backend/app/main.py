@@ -1,16 +1,13 @@
 from fastapi import FastAPI
-from apps.backend.app.middleware.cors import setup_cors
+from middleware.cors import setup_cors
 from middleware import Oauth2Middleware
-from pathlib import Path
-import os
-import sys
-sys.path.append(str(Path(__file__).parent))
 from api import v1_app 
 from contextlib import asynccontextmanager
-from apps.backend.app.db.postgres import get_pg_connection
+from db.postgres import get_pg_connection
 from services.pg_db_service import create_db
 from db.redis import get_redis_connection
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

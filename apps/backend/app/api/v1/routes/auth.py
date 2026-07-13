@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, Response, HTTPException, status, Form
-from apps.backend.app.db.postgres import get_pg_connection
+from db.postgres import get_pg_connection
 from services.pg_db_service import execute_query
 from services.jwt_service import create_jwt_token
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
@@ -107,6 +107,7 @@ async def register(
             """,
             (company[0]["id"], company_name, email, hashed_password),
         )
+
     except Exception as e:
         logger.error("Error occurred while registering user: %s", str(e))
         raise HTTPException(

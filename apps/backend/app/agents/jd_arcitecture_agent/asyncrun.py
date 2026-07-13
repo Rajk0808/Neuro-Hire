@@ -2,9 +2,7 @@ from agents.jd_arcitecture_agent import *
 from crewai import Agent, Task, Crew
 from services.pg_db_service import execute_query
 
-# ==========================================
-# 1. DEFINE AGENTS & CREWS
-# ==========================================
+
 jd_creator = Agent(
     role="Senior HR Architect and Copywriter",
     goal="Extract skills, benchmark salaries, check legal compliance, and write an inclusive Job Description.",
@@ -21,9 +19,6 @@ jd_publisher = Agent(
     verbose=True
 )
 
-# ==========================================
-# 2. FLOW 1: ASYNC GENERATION / REWRITE
-# ==========================================
 async def generate_or_edit_jd(session_id: str, raw_text: str):
     """Runs the initial creation or editing loop as a non-blocking background task."""
     await execute_query("UPDATE sessions SET status = 'processing' WHERE id = %s", (session_id,))
@@ -43,10 +38,8 @@ async def generate_or_edit_jd(session_id: str, raw_text: str):
     # Update our state database with the result
     await execute_query("UPDATE sessions SET status = 'awaiting_human_review', current_draft = %s WHERE id = %s", (crew_output.raw, session_id))
     print(f"🎯 [Session {session_id}] Draft generation complete. Paused for human approval.")
+    return crew_output.raw
 
-# ==========================================
-# 3. FLOW 2: ASYNC POSTING EXECUTOR
-# ==========================================
 async def publish_approved_jd(session_id: str, final_jd: str, channels: list[str] | None = None):
     """Runs the posting tool asynchronously once the human confirms approval."""
     await execute_query("UPDATE sessions SET status = 'posting' WHERE id = %s", (session_id,))

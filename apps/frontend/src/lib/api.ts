@@ -221,9 +221,10 @@ export const JobApi = {
     return api.get<{ jobs: JobResponse[] }>("/v1/jobs").then((response) => response.data);
   },
   
-  createJob: (request: { jd_query: string }) => {
+  createJob: (request: {description_query: string }) => {
     return api.post<JobPipelineResponse>("/v1/create-job", { 
-      description_query: request.jd_query 
+      user_id: null,
+      description_query: request.description_query
     }).then((response) => response.data);
   },
 

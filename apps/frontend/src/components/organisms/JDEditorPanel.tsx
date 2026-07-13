@@ -61,6 +61,7 @@ export function JDEditorPanel() {
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [biasData, setBiasData] = useState<BiasData | null>(null);
+  const liveDeiTone = liveDeiScore >= 80 ? "good" : liveDeiScore >= 60 ? "warning" : "danger";
 
   useEffect(() => {
     const savedSessionId = window.localStorage.getItem(sessionStorageKey);
@@ -87,7 +88,23 @@ export function JDEditorPanel() {
     const delayDebounceFn = window.setTimeout(async () => {
       try {
         const data = await JobApi.getDEIScore(query);
-        setLiveDeiScore(data.dei_score.dei_score ?? 0);
+        const liveData = data.dei_score;
+        const normalizedLiveScore =
+          typeof liveData.dei_score === "number"
+            ? liveData.dei_score
+            : typeof liveData.bias_score === "number"
+              ? Math.max(0, Math.min(100, 100 - liveData.bias_score))
+              : 0;
+
+        setLiveDeiScore(normalizedLiveScore);
+        setBiasData({
+          flagged_words: Array.isArray(liveData.flagged_words) ? liveData.flagged_words : [],
+          replacement_suggestions: Array.isArray(liveData.replacement_suggestions) ? liveData.replacement_suggestions : [],
+          bias_score: typeof liveData.bias_score === "number" ? liveData.bias_score : 100 - normalizedLiveScore,
+          recommendation: typeof liveData.recommendation === "string" ? liveData.recommendation : "",
+          escalated: Boolean(liveData.escalated),
+          escalation_details: liveData.escalation_details as EscalationDetails | undefined
+        });
       } catch (error) {
         console.error("Failed to fetch live DEI score", error);
       }
@@ -155,7 +172,7 @@ export function JDEditorPanel() {
     setBiasData(null);
 
     try {
-      const response = (await JobApi.createJob({ jd_query: query })) as JobPipelineWithBias;
+      const response = (await JobApi.createJob({ description_query: query })) as JobPipelineWithBias;
       setSessionId(response.session_id);
       setSessionStatus(response.status);
       setMessage(response.message);
@@ -263,49 +280,81 @@ export function JDEditorPanel() {
             />
 
             <div className="jd-meta-row">
-              <span className="nh-badge nh-badge-info">Live DEI {liveDeiScore}/100</span>
+              <span className={`nh-badge nh-badge-${liveDeiTone}`}>Live DEI {Math.round(liveDeiScore)}/100</span>
               <span className="nh-badge nh-badge-neutral">Session {sessionId ? sessionId.slice(0, 8) : "pending"}</span>
               <span className="nh-badge nh-badge-good">Status {sessionStatus}</span>
             </div>
 
             {message && <div className="jd-alert">{message}</div>}
 
-            {biasData && biasData.flagged_words.length > 0 && (
+            {biasData && (
               <div
                 className="jd-bias-banner"
-                style={{ background: "rgba(239, 68, 68, 0.08)", border: "1px solid #ef4444", padding: "12px", borderRadius: "6px", margin: "12px 0" }}
+                style={{
+                  background:
+                    biasData.bias_score >= 80
+                      ? "rgba(126, 231, 135, 0.08)"
+                      : biasData.bias_score >= 60
+                        ? "rgba(255, 188, 115, 0.10)"
+                        : "rgba(255, 143, 163, 0.10)",
+                  border:
+                    biasData.bias_score >= 80
+                      ? "1px solid rgba(126, 231, 135, 0.35)"
+                      : biasData.bias_score >= 60
+                        ? "1px solid rgba(255, 188, 115, 0.38)"
+                        : "1px solid rgba(255, 143, 163, 0.4)",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  margin: "12px 0"
+                }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "600", color: "#b91c1c" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontWeight: "700",
+                    color: biasData.bias_score >= 80 ? "var(--green)" : biasData.bias_score >= 60 ? "var(--amber)" : "var(--rose)",
+                    fontSize: "14px",
+                    lineHeight: 1.2
+                  }}
+                >
                   <ShieldAlert size={18} />
                   <span>Bias Guardian Warning (Score: {biasData.bias_score.toFixed(1)}%)</span>
                 </div>
-                <p style={{ fontSize: "14px", margin: "6px 0 10px 0" }}>{biasData.recommendation}</p>
+                <p style={{ fontSize: "13px", lineHeight: 1.55, margin: "8px 0 10px 0", color: "var(--text)" }}>{biasData.recommendation}</p>
 
-                {biasData.escalation_details?.detailed_analysis.patterns_detected.map((pattern, idx) => (
-                  <span key={idx} className="nh-badge nh-badge-danger" style={{ fontSize: "11px", marginRight: "4px" }}>
-                    {pattern}
-                  </span>
-                ))}
-
-                <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexDirection: "column" }}>
-                  {biasData.flagged_words.map((word, index) => (
-                    <div
-                      key={index}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", padding: "6px 10px", borderRadius: "4px", border: "1px solid #e5e7eb" }}
-                    >
-                      <span style={{ fontSize: "13px" }}>
-                        Replace <strong style={{ color: "#ef4444" }}>{`"${word}"`}</strong> with <strong style={{ color: "#16a34a" }}>{`"${biasData.replacement_suggestions[index] ?? word}"`}</strong>
+                {biasData.flagged_words.length > 0 ? (
+                  <>
+                    {biasData.escalation_details?.detailed_analysis.patterns_detected.map((pattern, idx) => (
+                      <span key={idx} className="nh-badge nh-badge-danger" style={{ fontSize: "11px", marginRight: "4px" }}>
+                        {pattern}
                       </span>
-                      <Button
-                        variant="ghost"
-                        icon={<Check size={14} />}
-                        onClick={() => applyFix(word, biasData.replacement_suggestions[index] ?? word)}
-                      >
-                        Apply Fix
-                      </Button>
+                    ))}
+
+                    <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexDirection: "column" }}>
+                      {biasData.flagged_words.map((word, index) => (
+                        <div
+                          key={index}
+                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fff", padding: "6px 10px", borderRadius: "4px", border: "1px solid #e5e7eb" }}
+                        >
+                          <span style={{ fontSize: "13px" }}>
+                            Replace <strong style={{ color: "#ef4444" }}>{`"${word}"`}</strong> with <strong style={{ color: "#16a34a" }}>{`"${biasData.replacement_suggestions[index] ?? word}"`}</strong>
+                          </span>
+                          <Button
+                            variant="ghost"
+                            icon={<Check size={14} />}
+                            onClick={() => applyFix(word, biasData.replacement_suggestions[index] ?? word)}
+                          >
+                            Apply Fix
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : (
+                  <p style={{ fontSize: "13px", margin: "8px 0 0 0", color: "#6b7280" }}>No flagged terms detected in the current draft.</p>
+                )}
 
                 <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   <Button variant="ghost" icon={<RotateCcw size={14} />} onClick={() => openReviewAction("retry")} disabled={!sessionId || isLoading}>

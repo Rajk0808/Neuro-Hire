@@ -1,5 +1,5 @@
 from fastapi import Request
-from apps.backend.app.db.postgres import get_pg_connection
+from db.postgres import get_pg_connection
 
 async def execute_query(query, params=None):
     connection = Request.state.pg_connection if hasattr(Request.state, 'pg_connection') else None
@@ -46,22 +46,6 @@ async def create_db():
 -- COMPLETE POSTGRESQL SCHEMA SETUP
 -- Generated for AI Recruiting / Agentic Job Board Platform
 -- =========================================================================
-
--- 1. DROP EXISTING TABLES (In correct dependency order)
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS sessions CASCADE;
-DROP TABLE IF EXISTS agents CASCADE;
-DROP TABLE IF EXISTS job_applications CASCADE;
-DROP TABLE IF EXISTS candidates CASCADE;
-DROP TABLE IF EXISTS jobs CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS companies CASCADE;
-
--- 2. DROP EXISTING TYPES
-DROP TYPE IF EXISTS seniority_level CASCADE;
-DROP TYPE IF EXISTS job_status CASCADE;
-DROP TYPE IF EXISTS candidate_status CASCADE;
-DROP TYPE IF EXISTS agent_state CASCADE;
 
 -- 3. CREATE CUSTOM ENUM TYPES
 CREATE TYPE seniority_level AS ENUM ('junior', 'mid', 'senior', 'staff', 'principal');
