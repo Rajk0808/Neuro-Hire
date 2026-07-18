@@ -25,6 +25,7 @@ async def create_job(request: JobCreateRequest, background_tasks: BackgroundTask
             session_id=None,
             raw_input=request.description_query,
             user_id=await get_user_id_by_email(current_user["useremail"]),
+
         ),
         background_tasks,
     )
@@ -33,14 +34,13 @@ async def create_job(request: JobCreateRequest, background_tasks: BackgroundTask
 async def get_jobs_by_dei_score(request: DeiScoreRequest):
     dei_tool = DEILanguageTool()
     res = await dei_tool._arunc(args=DEILanguageArgs(job_description=request.description, threshold=0.5))
-    print(res)
     return {"dei_score": res}
 
 
 async def get_user_id_by_email(email: str) -> int:
-    user_rows = await execute_query("SELECT id FROM users WHERE email = $1", (email,))
+    user_rows = await execute_query("SELECT id FROM companies WHERE email = $1", (email,))
     if not user_rows:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Company not found")
     return user_rows[0]["id"]
 
 
@@ -50,11 +50,11 @@ async def start_pipeline(request: JobRequest, background_tasks: BackgroundTasks)
     if user_id is None:
         raise HTTPException(status_code=400, detail="User id is required to start a session")
 
-    session_id = str(uuid4())
-    await execute_query(
-        query = f"INSERT INTO sessions (id, user_id, status, raw_draft) VALUES ({session_id}, {user_id}, 'queued', {request.raw_input})",
+    res = await execute_query(
+        "INSERT INTO sessions (user_id, status, raw_draft) VALUES ($1, 'queued', $2)",
+        (user_id, request.raw_input)
     )
-    
+    session_id = res.get("id") 
     # Offload the heavy CrewAI execution to background workers so the API responds immediately
     background_tasks.add_task(generate_or_edit_jd, session_id, request.raw_input)
     return {"message": "Pipeline initiated", "session_id": session_id, "status": "processing"}

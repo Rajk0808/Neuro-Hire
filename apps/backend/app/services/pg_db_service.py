@@ -1,43 +1,34 @@
-from fastapi import Request
 from db.postgres import get_pg_connection
 
 async def execute_query(query, params=None):
-    connection = Request.state.pg_connection if hasattr(Request.state, 'pg_connection') else None
-    owns_connection = False
-
-    if connection is None:
-        connection = await get_pg_connection()
-        owns_connection = True
-
-    if connection is None:
-        return None
+    # Fixed: Removed the invalid FastAPI Request class check for external scripts
+    connection = await get_pg_connection()
     
     query_params = params if params is not None else ()
     if not isinstance(query_params, (list, tuple)):
         query_params = (query_params,)
 
     try:
-        # Check if it is a read query (SELECT)
         normalized_query = query.strip().lower()
+        # To get structured data back from an INSERT, we MUST check for RETURNING clauses
         if normalized_query.startswith("select") or " returning " in normalized_query:
-            # asyncpg uses .fetch() to grab all rows directly. No cursor needed!
             result = await connection.fetch(query, *query_params)
-            return result
+            
+            # Structuring return: Convert list of asyncpg.Record rows into a list of regular dicts
+            return [dict(row) for row in result]
         else:
-            # For INSERT/UPDATE/DELETE, wrap it in an atomic transaction.
-            # This replaces manual connection.commit()
             async with connection.transaction():
                 await connection.execute(query, *query_params)
-            return True
+            return {"success": True}
             
     except Exception as e:
         print(f"Error executing query: {e}")
-        return None
+        return {"error": str(e)}
         
     finally:
-        # Crucial: Always close raw connections to prevent pool exhaustion
-        if owns_connection:
+        if connection:
             await connection.close()
+
 
 async def create_db():
     try:
@@ -139,14 +130,17 @@ CREATE TABLE agents (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- SESSIONS TABLE (User Auth Sessions)
-CREATE TABLE sessions (
-    id VARCHAR(255) PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    token TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE ai_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL, -- Supports email strings or unregistered guest strings
+    status VARCHAR(50) DEFAULT 'queued',
+    raw_draft TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Apply modtime trigger to the new AI sessions table
+CREATE TRIGGER update_ai_sessions_modtime BEFORE UPDATE ON ai_sessions FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 
 -- AUDIT LOGS TABLE
 CREATE TABLE audit_logs (

@@ -1,14 +1,15 @@
 from agents.jd_arcitecture_agent import *
 from crewai import Agent, Task, Crew
 from services.pg_db_service import execute_query
-
+from custom_llm.CustomLLM import CustomLLM
 
 jd_creator = Agent(
     role="Senior HR Architect and Copywriter",
     goal="Extract skills, benchmark salaries, check legal compliance, and write an inclusive Job Description.",
     backstory="You are an expert recruiter who utilizes data tools to optimize job profiles.",
     tools=[LegalRequirementsCheckerTool(), SkillsExtractorTool(), CompetitorJDAnalyzerTool(), SalaryBenchMarkerTool(), DEILanguageTool()],
-    verbose=True
+    verbose=True,
+    llm=CustomLLM(model = "openai/gpt-oss-20b:free",tools=[LegalRequirementsCheckerTool(), SkillsExtractorTool(), CompetitorJDAnalyzerTool(), SalaryBenchMarkerTool(), DEILanguageTool()])
 )
 
 jd_publisher = Agent(
@@ -16,7 +17,8 @@ jd_publisher = Agent(
     goal="Post finalized and approved job descriptions to corporate job boards.",
     backstory="A precise execution agent responsible for publicizing approved job listings.",
     tools=[JDPosterTool()],
-    verbose=True
+    verbose=True,
+    llm=CustomLLM(model = "openai/gpt-oss-20b:free",tools=[JDPosterTool()])
 )
 
 async def generate_or_edit_jd(session_id: str, raw_text: str):

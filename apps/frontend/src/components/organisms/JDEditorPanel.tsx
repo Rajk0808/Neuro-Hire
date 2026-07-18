@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/atoms/Button";
 import { ScoreGauge } from "@/components/molecules/ScoreGauge";
 import { JobApi } from "@/lib/api";
+import { useRouter } from "next/dist/client/components/navigation";
 
 type ReviewAction = "retry" | "continue" | "stop" | null;
 type PostingChannel = "naukri" | "linkedin" | "indeed";
@@ -40,6 +41,7 @@ interface BiasData {
 type JobSessionWithBias = Awaited<ReturnType<typeof JobApi.getJobStatus>> & Partial<BiasData>;
 type JobPipelineWithBias = Awaited<ReturnType<typeof JobApi.createJob>> & Partial<BiasData>;
 
+const router = useRouter();
 const sessionStorageKey = "neuro-hire.job.session-id";
 const postingChannels: Array<{ key: PostingChannel; label: string; hint: string }> = [
   { key: "naukri", label: "Naukri.com", hint: "Primary India hiring board" },
@@ -260,9 +262,9 @@ export function JDEditorPanel() {
           <div>
             <span>JD Architect</span>
             <h2>New Job Requisition</h2>
-          </div>
           <Button icon={<Sparkles size={16} />} onClick={startJob} disabled={isLoading}>
             {isLoading && !sessionId ? "Launching..." : "Generate JD"}
+          </Button>
           </Button>
         </div>
 
