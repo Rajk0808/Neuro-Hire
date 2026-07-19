@@ -1,9 +1,12 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import WebSocket, WebSocketDisconnect
 from uuid import uuid4
 from services.jwt_service import verify_jwt_token
 from services.pg_db_service import execute_query
-from schemas.jobs import JobCreateRequest, DeiScoreRequest
+from schemas.jobs import DeiScoreRequest
 from agents.jd_arcitecture_agent import *
+from fastapi.concurrency import run_in_threadpool
+from fastapi import Query
 from schemas.jobs import JobRequest, HumanFeedbackRequest
 from agents.jd_arcitecture_agent.schema.research_schema import DEILanguageArgs
 from agents.jd_arcitecture_agent.asyncrun import generate_or_edit_jd, publish_approved_jd
@@ -18,17 +21,52 @@ async def get_jobs(current_user = Depends(verify_jwt_token)):
     logger.info(f"Retrieved jobs: {res}")
     return {"jobs": res}
 
-@router.post("/create-job")
-async def create_job(request: JobCreateRequest, background_tasks: BackgroundTasks, current_user = Depends(verify_jwt_token)):
-    return await start_pipeline(
-        JobRequest(
-            session_id=None,
-            raw_input=request.description_query,
-            user_id=await get_user_id_by_email(current_user["useremail"]),
+@router.websocket("/jobs/create-job/ws")
+async def create_job_ws(websocket: WebSocket):
+    # 1. Accept the connection immediately (Authentication was handled by your middleware)
+    await websocket.accept()
+    
+    # Retrieve user details attached by your middleware (adjust property name if needed)
+    current_user = getattr(websocket.state, "user", {"useremail": "unknown_user"})
+    logger.info(f"WebSocket connection accepted for user: {current_user['useremail']}")
+    
+    try:
+        while True:
+            data = await websocket.receive_json()
+            
+            if "description_query" not in data:
+                await websocket.send_json({"error": "Missing 'description_query' in request"})
+                continue
 
-        ),
-        background_tasks,
-    )
+            description_query = data["description_query"]
+            session_id = str(uuid4())
+
+            # Send initial processing state to frontend
+            await websocket.send_json({
+                "message": "Pipeline initiated", 
+                "session_id": session_id, 
+                "status": "processing",
+                "result": "Pipeline started. Generating draft..."
+            })
+
+            res = await generate_or_edit_jd(session_id, description_query)
+            # Send final completed state
+            await websocket.send_json({
+                "message": "Success", 
+                "session_id": session_id, 
+                "status": "completed", 
+                "result": res.raw if hasattr(res, 'raw') else res
+            })
+            
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for user: {current_user['useremail']}")
+    except Exception as e:
+        logger.error(f"Error in WebSocket execution: {str(e)}")
+        try:
+            await websocket.send_json({"error": "Internal server error"})
+        except:
+            pass
+
 
 @router.post('/jobs/dei-score')
 async def get_jobs_by_dei_score(request: DeiScoreRequest):
@@ -38,9 +76,9 @@ async def get_jobs_by_dei_score(request: DeiScoreRequest):
 
 
 async def get_user_id_by_email(email: str) -> int:
-    user_rows = await execute_query("SELECT id FROM companies WHERE email = $1", (email,))
+    user_rows = await execute_query("SELECT id FROM users WHERE email = $1", (email,))
     if not user_rows:
-        raise HTTPException(status_code=404, detail="Company not found")
+        raise HTTPException(status_code=404, detail="User not found")
     return user_rows[0]["id"]
 
 

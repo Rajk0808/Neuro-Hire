@@ -1,8 +1,10 @@
-
 from crewai import BaseLLM
 from typing import Any, Dict, List, Optional, Union
 import os
+import re
+import json
 from openai import OpenAI
+
 class CustomLLM(BaseLLM):
     def __init__(self, model: str, temperature: Optional[float] = None, tools: Optional[List[dict]] = None):
         super().__init__(model=model, temperature=temperature)
@@ -18,20 +20,23 @@ class CustomLLM(BaseLLM):
         from_agent = None,
         response_model=None
     ) -> Union[str, Any]:
+        
+        # Enforce list structure for message context
         if isinstance(messages, str):
             messages = [
                 {
-                    "role" : "system",
-                    "content" : "You are a specialist Job Description Architect for a recruiting platform. Your goal is to produce a complete, market-benchmarked, DEI-clean, legally compliant job description from a hiring manager's rough input. Always reason before acting. Use the available tools to gather grounded data before writing any content. Never fabricate salary ranges, skill requirements, or market data."
+                    "role": "system",
+                    "content": "You are a specialist Job Description Architect for a recruiting platform. Your goal is to produce a complete, market-benchmarked, DEI-clean, legally compliant job description from a hiring manager's rough input. Always reason before acting. Use the available tools to gather grounded data before writing any content. Never fabricate salary ranges, skill requirements, or market data."
                 },
                 {
-                    "role" : "user",
-                    "content" : messages
+                    "role": "user",
+                    "content": messages
                 }
             ]
+            
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key = os.getenv("OPENROUTER_API_KEY")
+            api_key=os.getenv("OPENROUTER_API_KEY")
         )
 
         tools = self.tools
@@ -41,19 +46,16 @@ class CustomLLM(BaseLLM):
             available_functions = {}
             if tools:
                 for tool in tools:
-                    # For BaseTool objects, the name is in the 'name' attribute
                     tool_name = tool.name if hasattr(tool, 'name') else str(tool)
-                    # The callable is the _run method
                     available_functions[tool_name] = tool._run if hasattr(tool, '_run') else tool
 
-        # Convert tools to OpenRouter format if they're BaseTool objects
+        # Convert tools to OpenRouter format if supported
         tools_for_api = []
         if tools and self.supports_function_calling():
             for tool in tools:
                 tool_name = tool.name if hasattr(tool, 'name') else str(tool)
                 tool_description = tool.description if hasattr(tool, 'description') else "Tool"
                 
-                # Get the schema from args_schema if available
                 schema = {}
                 if hasattr(tool, 'args_schema') and tool.args_schema:
                     try:
@@ -76,14 +78,12 @@ class CustomLLM(BaseLLM):
         while iteration < max_iterations:
             iteration += 1
             
-            # Build request payload
             payload = {
                "model": self.model,
                "messages": messages,
-               "extra_body": {"reasoning": {"enabled": True}}
+               "extra_body": {"reasoning": {"enabled": True}}  # Required by gpt-oss-20b:free
             }
             
-            # Include tools if provided and supported
             if tools_for_api and self.supports_function_calling():
                 payload["tools"] = tools_for_api
                 payload["tool_choice"] = "auto"
@@ -91,15 +91,18 @@ class CustomLLM(BaseLLM):
             response = client.chat.completions.create(**payload)
             response_message = response.choices[0].message
             
-            # Add assistant response to messages in CrewAI-compatible format
+            # Extract content cleanly or default to an empty string
+            content_text = response_message.content or ""
+            
+            # Construct a clean dictionary message history layer for the model chain
             assistant_msg = {
                 "role": "assistant",
-                "content": response_message.content or ""
+                "content": content_text
             }
             
-            # Only add tool_calls if they exist and convert to dict format
-            if hasattr(response_message, 'tool_calls') and response_message.tool_calls:
-                # Convert tool_calls to dictionary format that CrewAI expects
+            # Process tool requests safely if provided
+            has_tool_calls = hasattr(response_message, 'tool_calls') and response_message.tool_calls
+            if has_tool_calls:
                 tool_calls_list = []
                 for tc in response_message.tool_calls:
                     tool_calls_list.append({
@@ -114,33 +117,30 @@ class CustomLLM(BaseLLM):
             
             messages.append(assistant_msg)
             
-            # Check if there are tool calls
-            if not hasattr(response_message, 'tool_calls') or not response_message.tool_calls:
-                # No more tool calls, return the final response
-                return response_message
+            # If no tool execution is required, handle text checking
+            if not has_tool_calls:
+                if content_text.strip():
+                    return content_text  # Return plain text string back to CrewAI
+                else:
+                    # Model is thinking/reasoning but hasn't generated structural output text yet. Loop again.
+                    print(f"[Iteration {iteration}] Model is processing reasoning phase... extending context.")
+                    continue
             
-            # Execute tool calls
+            # Execute tool paths sequential loop
             for tool_call in response_message.tool_calls:
                 tool_name = tool_call.function.name
                 tool_args = tool_call.function.arguments
                 
-                # Clean tool name: remove channel suffixes like <|channel|>json, <|channel|>commentary
-                import re
                 clean_tool_name = re.sub(r'<\|channel\|>.*$', '', tool_name).strip()
                 
-                # Parse arguments if it's a string
                 if isinstance(tool_args, str):
-                    import json
                     try:
-                        # Clean up malformed JSON (remove duplicate opening braces, etc.)
                         tool_args_clean = tool_args.strip()
                         if tool_args_clean.startswith('{\n{'):
                             tool_args_clean = '{' + tool_args_clean[3:]
                         tool_args = json.loads(tool_args_clean)
                     except json.JSONDecodeError as e:
-                        print(f"[JSON ERROR] JSON Parse Error for tool '{tool_name}':")
-                        print(f"   Raw arguments: {repr(tool_args)}")
-                        print(f"   Error: {str(e)}")
+                        print(f"[JSON ERROR] Failed parsing args for '{tool_name}': {str(e)}")
                         tool_result = f"Failed to parse tool arguments for {tool_name}: {str(e)}"
                         messages.append({
                             "role": "tool",
@@ -149,44 +149,37 @@ class CustomLLM(BaseLLM):
                         })
                         continue
                 
-                # Try to find the tool (exact match first, then fuzzy match)
                 actual_tool_name = None
                 if clean_tool_name in available_functions:
                     actual_tool_name = clean_tool_name
                 else:
-                    # Fuzzy matching: try to find a tool with similar name
                     for available_tool in available_functions.keys():
                         if clean_tool_name.lower() in available_tool.lower() or available_tool.lower() in clean_tool_name.lower():
                             actual_tool_name = available_tool
                             break
                 
-                # Execute the tool
                 if actual_tool_name:
                     try:
                         print(f"[INFO] Executing tool: {tool_name} -> {actual_tool_name}")
                         tool_result = available_functions[actual_tool_name](**tool_args)
-                        print(f"[OK] Tool executed: {tool_name} -> {actual_tool_name}")
+                        print(f"[OK] Tool execution complete.")
                     except Exception as e:
                         tool_result = f"Tool execution error: {str(e)}"
-                        print(f"[ERROR] Tool error: {tool_name} - {str(e)}")
+                        print(f"[ERROR] Tool failed: {str(e)}")
                 else:
-                    tool_result = f"Tool {tool_name} not found in available functions. Available: {list(available_functions.keys())}"
-                    print(f"[ERROR] Tool not found: {tool_name}")
+                    tool_result = f"Tool {tool_name} not found in available functions."
+                    print(f"[ERROR] Tool missing: {tool_name}")
                 
-                # Add tool result to messages
                 messages.append({
                     "role": "tool",
                     "content": str(tool_result),
                     "tool_call_id": tool_call.id
                 })
         
-        # If we exit the loop, return the last response
-        return response_message
-        
+        return messages[-1].get("content", "")
+
     def supports_function_calling(self) -> bool:
-        # Return True if your LLM supports function calling, otherwise False
         return True
         
     def get_context_window_size(self) -> int:
-        # Return the context window size of your LLM
-        return 256000 
+        return 256000

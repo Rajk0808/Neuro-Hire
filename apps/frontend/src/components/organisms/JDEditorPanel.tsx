@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/atoms/Button";
 import { ScoreGauge } from "@/components/molecules/ScoreGauge";
 import { JobApi } from "@/lib/api";
-import { useRouter } from "next/dist/client/components/navigation";
+import { useRouter } from "next/navigation";
+
 
 type ReviewAction = "retry" | "continue" | "stop" | null;
 type PostingChannel = "naukri" | "linkedin" | "indeed";
@@ -39,9 +40,8 @@ interface BiasData {
 }
 
 type JobSessionWithBias = Awaited<ReturnType<typeof JobApi.getJobStatus>> & Partial<BiasData>;
-type JobPipelineWithBias = Awaited<ReturnType<typeof JobApi.createJob>> & Partial<BiasData>;
 
-const router = useRouter();
+
 const sessionStorageKey = "neuro-hire.job.session-id";
 const postingChannels: Array<{ key: PostingChannel; label: string; hint: string }> = [
   { key: "naukri", label: "Naukri.com", hint: "Primary India hiring board" },
@@ -50,6 +50,7 @@ const postingChannels: Array<{ key: PostingChannel; label: string; hint: string 
 ];
 
 export function JDEditorPanel() {
+  const router = useRouter(); 
   const [query, setQuery] = useState<string>(
     "Senior backend engineer for AI recruiting platform. Needs Python, FastAPI, vector search, AWS, strong mentorship, remote friendly, inclusive wording, salary 40-60 LPA."
   );
@@ -163,40 +164,17 @@ export function JDEditorPanel() {
     };
   }, [sessionId]);
 
+  // Look for the startJob function inside JDEditorPanel and change it to:
   const startJob = async () => {
-    if (!query.trim()) {
-      setMessage("Add a prompt before generating a JD.");
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage("");
-    setBiasData(null);
-
-    try {
-      const response = (await JobApi.createJob({ description_query: query })) as JobPipelineWithBias;
-      setSessionId(response.session_id);
-      setSessionStatus(response.status);
-      setMessage(response.message);
-
-      if (Array.isArray(response.flagged_words) && response.flagged_words.length > 0) {
-        setBiasData({
-          flagged_words: response.flagged_words,
-          replacement_suggestions: response.replacement_suggestions ?? [],
-          bias_score: typeof response.bias_score === "number" ? response.bias_score : 0,
-          recommendation: response.recommendation ?? "",
-          escalated: Boolean(response.escalated),
-          escalation_details: response.escalation_details
-        });
-      }
-    } catch (error) {
-      setMessage("Unable to start the JD pipeline right now.");
-      console.error("Failed to create job", error);
-    } finally {
-      setIsLoading(false);
-    }
+    if (!query.trim()) return;
+    
+    // Encode the query safely into the URL string parameters
+    const params = new URLSearchParams();
+    params.set("q", query.trim());
+    
+    router.push(`/dashboard/jobs/chat?${params.toString()}`);
   };
-
+  
   const applyFix = (flagged: string, replacement: string) => {
     const regex = new RegExp(`\\b${flagged}\\b`, "gi");
     setQuery((prev) => prev.replace(regex, replacement));
@@ -265,7 +243,7 @@ export function JDEditorPanel() {
           <Button icon={<Sparkles size={16} />} onClick={startJob} disabled={isLoading}>
             {isLoading && !sessionId ? "Launching..." : "Generate JD"}
           </Button>
-          </Button>
+          </div>
         </div>
 
         <div className="jd-main-grid">

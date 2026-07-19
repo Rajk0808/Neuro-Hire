@@ -1,4 +1,4 @@
-"use client"; // 👈 Add this exact string at the very top of the file
+"use client"; 
 
 import { JobCard } from "@/components/molecules/JobCard";
 import { DashboardApi } from "@/lib/api";

@@ -91,11 +91,11 @@ async def register(
     try :
         company = await execute_query(
             """
-            INSERT INTO companies (company_name, email, password_hash)
-            VALUES ($1, $2, $3)
+            INSERT INTO users (email, password_hash, first_name, last_name)
+            VALUES ($1, $2, $3, $4)
             RETURNING id
             """,
-            (company_name, email, hashed_password),
+            (email, hashed_password, "", ""),
         )
         if not company:
             raise RuntimeError("Company insert did not return an id")

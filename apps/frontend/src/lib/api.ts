@@ -102,6 +102,7 @@ type JobPipelineResponse = {
   message: string;
   session_id: string;
   status: string;
+  result: string; // This is the processed job description markdown content block
 };
 
 type JobSessionResponse = {
@@ -186,6 +187,7 @@ export const loginRecruiter = ({ email, password }: LoginPayload) => {
   formData.append("password", password);
   return postAuthForm<AuthResponse>("/v1/login", formData); 
 };
+  
 
 export const registerRecruiter = ({ companyName, email, password }: RegisterPayload) => {
   const formData = new FormData();
@@ -220,12 +222,43 @@ export const JobApi = {
   getJobs: () => {
     return api.get<{ jobs: JobResponse[] }>("/v1/jobs").then((response) => response.data);
   },
+
+
+  createJobWebSocket: (
+    descriptionQuery: string,
+    onMessage: (data: JobPipelineResponse) => void,
+    onError?: (error: Event) => void,
+    onClose?: () => void
+  ): WebSocket => {
+    // 1. Convert HTTP/S URL to WS/S URL dynamically from your base config
+    const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+    
+    // Parses your base API URL host (e.g. localhost:8080)
+    const baseHost = API_BASE_URL.replace(/^https?:\/\//, ""); 
+    
+    // 2. Extract authorization token exactly from your local storage helper
+    const token = getStoredAccessToken();
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+
+    // Build absolute URL: ws://localhost:8080/v1/jobs/create-job/ws?token=...
+    const wsUrl = `${wsScheme}//${baseHost}/v1/jobs/create-job/ws${tokenParam}`; 
+    const socket = new WebSocket(wsUrl);
   
-  createJob: (request: {description_query: string }) => {
-    return api.post<JobPipelineResponse>("/v1/create-job", { 
-      user_id: null,
-      description_query: request.description_query
-    }).then((response) => response.data);
+    socket.onopen = () => {
+      // Send the payload exactly as the Python backend expects it
+      const payload = { description_query: descriptionQuery };
+      socket.send(JSON.stringify(payload));
+    };
+  
+    socket.onmessage = (event) => {
+      const data: JobPipelineResponse = JSON.parse(event.data);
+      onMessage(data);
+    };
+  
+    if (onError) socket.onerror = onError;
+    if (onClose) socket.onclose = onClose;
+  
+    return socket;
   },
 
   getJobStatus: (sessionId: string) => {
@@ -313,4 +346,3 @@ export const getApiErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export default api;
-

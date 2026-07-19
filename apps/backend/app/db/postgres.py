@@ -4,7 +4,7 @@ import os
 
 load_dotenv(find_dotenv())
 
-async def get_pg_connection():
+async def get_pg_connection()->asyncpg.Connection | None:
     try:
         connection = await asyncpg.connect(
             host=os.getenv("POSTGRES_HOST", "localhost"),
