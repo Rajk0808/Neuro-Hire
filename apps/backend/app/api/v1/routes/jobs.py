@@ -106,34 +106,18 @@ async def get_status(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
     return session_data[0]
 
-
-@router.post("/jobs/review")
-async def submit_human_review(request: HumanFeedbackRequest, background_tasks: BackgroundTasks):
-    """Endpoint 3: The non-blocking HITL gateway. Accepts feedback or approvals."""
-    session_id = request.session_id
-    
+@router.get('/jobs/publish/{session_id}')
+async def publish_job(session_id: str):
+    """Endpoint 3: Publishes the approved draft to the database."""
     session_data = await execute_query("SELECT * FROM sessions WHERE id = %s", (session_id,))
     if not session_data:
         raise HTTPException(status_code=404, detail="Session not found")
-        
-    session_data = session_data[0]
-    action = request.action or ("continue" if request.approved else "retry")
+    
+    session = session_data[0]
+    if session['status'] != 'completed':
+        raise HTTPException(status_code=400, detail="Session is not completed yet")
+    elif session['status'] == '':
 
-    if action == "stop":
-        await execute_query("UPDATE sessions SET status = 'stopped' WHERE id = %s", (session_id,))
-        return {"message": "Session stopped. The current draft has been held.", "status": "stopped"}
-
-    if action == "continue" or request.approved:
-        # Branch A: Human says CONTINUE TO POST
-        background_tasks.add_task(
-            publish_approved_jd,
-            session_id,
-            session_data.get("current_draft") or session_data.get("raw_draft") or "",
-            request.selected_channels or [],
-        )
-        return {"message": "Approval received. Job is being posted.", "status": "posting"}
-    else:
-        # Branch B: Human says RETRY WITH FEEDBACK
-        new_prompt = f"Original Criteria: {session_data.get('raw_draft') or session_data.get('raw_input') or ''}\n\nApply this feedback: {request.feedback or ''}"
-        background_tasks.add_task(generate_or_edit_jd, session_id, new_prompt)
-        return {"message": "Feedback received. Regenerating draft...", "status": "processing"}
+    # Offload the publishing task to background workers
+    await publish_approved_jd(session_id)
+    return {"message": "Job published successfully", "session_id": session_id}

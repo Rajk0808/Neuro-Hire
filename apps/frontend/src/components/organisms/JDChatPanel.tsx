@@ -128,13 +128,15 @@ export function ChatPage({ initialQuery = "" }: ChatPageProps) {
     setMessages((m) => m.filter((x) => x.id !== botId));
   };
 
-  const proceed = (botId: string) => {
+
+  const proceed = (botId: string, sourceUserId: string | undefined ) => {
     if (loading) return;
     const note: Msg = {
       id: crypto.randomUUID(),
       role: "bot",
       text: "✓ Proceeding with this JD — routed to pipeline builder.",
     };
+    JobApi.PostJob(sourceUserId);
     setMessages((m) => [...m, note]);
     void botId;
   };
@@ -177,7 +179,7 @@ export function ChatPage({ initialQuery = "" }: ChatPageProps) {
               </div>
               {m.role === "bot" && m.sourceUserId && (
                 <div className="msg-actions">
-                  <button className="act act-proceed" onClick={() => proceed(m.id)} disabled={loading}>
+                  <button className="act act-proceed" onClick={() => proceed(m.id, m.sourceUserId)} disabled={loading}>
                     Proceed
                   </button>
                   <button className="act act-retry" onClick={() => retry(m.id, m.sourceUserId)} disabled={loading}>

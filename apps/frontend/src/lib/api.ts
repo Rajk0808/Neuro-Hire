@@ -260,6 +260,10 @@ export const JobApi = {
   
     return socket;
   },
+  
+  PostJob: (sessionUserId: string) => {
+    return api.post<JobResponse>("/v1/create-job", { sourceUserId: sessionUserId }).then((response) => response.data);
+  },
 
   getJobStatus: (sessionId: string) => {
     return api.get<JobSessionResponse>(`/v1/jobs/status/${sessionId}`).then((response) => response.data);
